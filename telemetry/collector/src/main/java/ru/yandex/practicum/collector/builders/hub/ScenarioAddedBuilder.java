@@ -24,50 +24,78 @@ public class ScenarioAddedBuilder extends BaseHubBuilder {
         return HubEventAvro.newBuilder()
                 .setHubId(hubEvent.getHubId())
                 .setTimestamp(hubEvent.getTimestamp())
-                .setPayload(new ScenarioAddedEventAvro(event.getName(), mapToConditionTypeAvro(event.getConditions()),
-                        mapToDeviceActionAvro(event.getActions())))
+                .setPayload(ScenarioAddedEventAvro.newBuilder()
+                        .setName(event.getName())
+                        .setConditions(mapToConditionTypeAvro(event.getConditions()))
+                        .setActions(mapToDeviceActionAvro(event.getActions()))
+                        .build())
                 .build();
     }
 
     private List<ScenarioConditionAvro> mapToConditionTypeAvro(List<ScenarioCondition> conditions) {
         return conditions.stream()
-                .map(c -> ScenarioConditionAvro.newBuilder()
-                        .setSensorId(c.getSensorId())
-                        .setType(
-                                switch (c.getType()) {
-                                    case MOTION -> ConditionTypeAvro.MOTION;
-                                    case LUMINOSITY -> ConditionTypeAvro.LUMINOSITY;
-                                    case SWITCH -> ConditionTypeAvro.SWITCH;
-                                    case TEMPERATURE -> ConditionTypeAvro.TEMPERATURE;
-                                    case CO2LEVEL -> ConditionTypeAvro.CO2LEVEL;
-                                    case HUMIDITY -> ConditionTypeAvro.HUMIDITY;
-                                })
-                        .setOperation(
-                                switch (c.getOperation()) {
-                                    case EQUALS -> ConditionOperationAvro.EQUALS;
-                                    case GREATER_THAN -> ConditionOperationAvro.GREATER_THAN;
-                                    case LOWER_THAN -> ConditionOperationAvro.LOWER_THAN;
-                                }
-                        )
-                        .setValue(c.getValue())
-                        .build())
+                .map(c -> {
+                    ScenarioConditionAvro.Builder builder = ScenarioConditionAvro.newBuilder()
+                            .setSensorId(c.getSensorId())
+                            .setType(mapConditionType(c.getType()))
+                            .setOperation(mapConditionOperation(c.getOperation()));
+
+                    // Правильная обработка union типа
+                    if (c.getValue() != null) {
+                        builder.setValue(c.getValue());
+                    } else {
+                        builder.setValue(null);
+                    }
+
+                    return builder.build();
+                })
                 .toList();
     }
 
     private List<DeviceActionAvro> mapToDeviceActionAvro(List<DeviceAction> deviceActions) {
         return deviceActions.stream()
-                .map(da -> DeviceActionAvro.newBuilder()
-                        .setSensorId(da.getSensorId())
-                        .setType(
-                                switch (da.getType()) {
-                                    case ACTIVATE -> ActionTypeAvro.ACTIVATE;
-                                    case DEACTIVATE -> ActionTypeAvro.DEACTIVATE;
-                                    case INVERSE -> ActionTypeAvro.INVERSE;
-                                    case SET_VALUE -> ActionTypeAvro.SET_VALUE;
-                                }
-                        )
-                        .setValue(da.getValue())
-                        .build())
+                .map(da -> {
+                    DeviceActionAvro.Builder builder = DeviceActionAvro.newBuilder()
+                            .setSensorId(da.getSensorId())
+                            .setType(mapActionType(da.getType()));
+
+                    // Правильная обработка union типа
+                    if (da.getValue() != null) {
+                        builder.setValue(da.getValue());
+                    } else {
+                        builder.setValue(null);
+                    }
+
+                    return builder.build();
+                })
                 .toList();
+    }
+
+    private ConditionTypeAvro mapConditionType(ru.yandex.practicum.collector.enums.ScenarioConditionType type) {
+        return switch (type) {
+            case MOTION -> ConditionTypeAvro.MOTION;
+            case LUMINOSITY -> ConditionTypeAvro.LUMINOSITY;
+            case SWITCH -> ConditionTypeAvro.SWITCH;
+            case TEMPERATURE -> ConditionTypeAvro.TEMPERATURE;
+            case CO2LEVEL -> ConditionTypeAvro.CO2LEVEL;
+            case HUMIDITY -> ConditionTypeAvro.HUMIDITY;
+        };
+    }
+
+    private ConditionOperationAvro mapConditionOperation(ru.yandex.practicum.collector.enums.ScenarioConditionOperationType operation) {
+        return switch (operation) {
+            case EQUALS -> ConditionOperationAvro.EQUALS;
+            case GREATER_THAN -> ConditionOperationAvro.GREATER_THAN;
+            case LOWER_THAN -> ConditionOperationAvro.LOWER_THAN;
+        };
+    }
+
+    private ActionTypeAvro mapActionType(ru.yandex.practicum.collector.enums.DeviceActionType type) {
+        return switch (type) {
+            case ACTIVATE -> ActionTypeAvro.ACTIVATE;
+            case DEACTIVATE -> ActionTypeAvro.DEACTIVATE;
+            case INVERSE -> ActionTypeAvro.INVERSE;
+            case SET_VALUE -> ActionTypeAvro.SET_VALUE;
+        };
     }
 }

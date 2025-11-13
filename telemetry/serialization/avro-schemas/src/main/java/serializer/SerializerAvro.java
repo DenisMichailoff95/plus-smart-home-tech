@@ -6,9 +6,16 @@ import org.apache.avro.io.EncoderFactory;
 import org.apache.avro.specific.SpecificDatumWriter;
 import org.apache.avro.specific.SpecificRecordBase;
 import org.apache.kafka.common.serialization.Serializer;
+
 import java.io.ByteArrayOutputStream;
+import java.util.Map;
 
 public class SerializerAvro implements Serializer<SpecificRecordBase> {
+
+    @Override
+    public void configure(Map<String, ?> configs, boolean isKey) {
+        // Конфигурация не требуется
+    }
 
     @Override
     public byte[] serialize(String topic, SpecificRecordBase input) {
@@ -16,21 +23,20 @@ public class SerializerAvro implements Serializer<SpecificRecordBase> {
             return null;
         }
         try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
-
             DatumWriter<SpecificRecordBase> datumWriter = new SpecificDatumWriter<>(input.getSchema());
-
             BinaryEncoder encoder = EncoderFactory.get().binaryEncoder(outputStream, null);
 
             datumWriter.write(input, encoder);
-
             encoder.flush();
 
-            outputStream.close();
-
             return outputStream.toByteArray();
-
         } catch (Exception e) {
-            throw new RuntimeException("Ошибка сериализации экземпляра по topic:" + topic, e);
+            throw new RuntimeException("Ошибка сериализации Avro данных для топика: " + topic + ", схема: " + input.getSchema(), e);
         }
+    }
+
+    @Override
+    public void close() {
+        // Ресурсы не требуют закрытия
     }
 }
