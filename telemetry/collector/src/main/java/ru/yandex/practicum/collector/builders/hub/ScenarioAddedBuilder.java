@@ -40,10 +40,20 @@ public class ScenarioAddedBuilder extends BaseHubBuilder {
                             .setType(mapConditionType(c.getType()))
                             .setOperation(mapConditionOperation(c.getOperation()));
 
-                    // Правильная обработка union типа
+                    // Правильная обработка union поля value
                     if (c.getValue() != null) {
-                        builder.setValue(c.getValue());
+                        // Для boolean условий используем boolean, для остальных - int
+                        if (c.getType() == ru.yandex.practicum.collector.enums.ScenarioConditionType.SWITCH ||
+                                c.getType() == ru.yandex.practicum.collector.enums.ScenarioConditionType.MOTION) {
+                            // Для SWITCH и MOTION используем boolean (1 = true, 0 = false)
+                            boolean boolValue = c.getValue() != 0;
+                            builder.setValue(boolValue);
+                        } else {
+                            // Для остальных типов используем int
+                            builder.setValue(c.getValue());
+                        }
                     } else {
+                        // Если value null, устанавливаем явно null
                         builder.setValue(null);
                     }
 
@@ -59,10 +69,11 @@ public class ScenarioAddedBuilder extends BaseHubBuilder {
                             .setSensorId(da.getSensorId())
                             .setType(mapActionType(da.getType()));
 
-                    // Правильная обработка union типа
+                    // Правильная обработка optional поля value
                     if (da.getValue() != null) {
                         builder.setValue(da.getValue());
                     } else {
+                        // Для optional полей можно не устанавливать значение - будет null по умолчанию
                         builder.setValue(null);
                     }
 

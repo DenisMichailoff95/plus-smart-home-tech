@@ -2,7 +2,6 @@ package ru.yandex.practicum.collector.builders.hub;
 
 import org.apache.avro.specific.SpecificRecordBase;
 import org.springframework.stereotype.Component;
-import ru.yandex.practicum.collector.enums.DeviceType;
 import ru.yandex.practicum.collector.producer.KafkaProducer;
 import ru.yandex.practicum.collector.schemas.hubEvent.BaseHubEvent;
 import ru.yandex.practicum.collector.schemas.hubEvent.DeviceAddedEvent;
@@ -23,20 +22,20 @@ public class DeviceAddedBuilder extends BaseHubBuilder {
         return HubEventAvro.newBuilder()
                 .setHubId(hubEvent.getHubId())
                 .setTimestamp(hubEvent.getTimestamp())
-                .setPayload(new DeviceAddedEventAvro(event.getId(), mapToDeviceTypeAvro(event.getDeviceType())))
+                .setPayload(DeviceAddedEventAvro.newBuilder()
+                        .setId(event.getId())
+                        .setType(mapToDeviceTypeAvro(event.getDeviceType()))
+                        .build())
                 .build();
     }
 
-    private DeviceTypeAvro mapToDeviceTypeAvro(DeviceType deviceType) {
-        DeviceTypeAvro type = null;
-
-        switch (deviceType) {
-            case LIGHT_SENSOR -> type = DeviceTypeAvro.LIGHT_SENSOR;
-            case MOTION_SENSOR -> type = DeviceTypeAvro.MOTION_SENSOR;
-            case SWITCH_SENSOR -> type = DeviceTypeAvro.SWITCH_SENSOR;
-            case CLIMATE_SENSOR -> type = DeviceTypeAvro.CLIMATE_SENSOR;
-            case TEMPERATURE_SENSOR -> type = DeviceTypeAvro.TEMPERATURE_SENSOR;
-        }
-        return type;
+    private DeviceTypeAvro mapToDeviceTypeAvro(ru.yandex.practicum.collector.enums.DeviceType deviceType) {
+        return switch (deviceType) {
+            case LIGHT_SENSOR -> DeviceTypeAvro.LIGHT_SENSOR;
+            case MOTION_SENSOR -> DeviceTypeAvro.MOTION_SENSOR;
+            case SWITCH_SENSOR -> DeviceTypeAvro.SWITCH_SENSOR;
+            case CLIMATE_SENSOR -> DeviceTypeAvro.CLIMATE_SENSOR;
+            case TEMPERATURE_SENSOR -> DeviceTypeAvro.TEMPERATURE_SENSOR;
+        };
     }
 }
