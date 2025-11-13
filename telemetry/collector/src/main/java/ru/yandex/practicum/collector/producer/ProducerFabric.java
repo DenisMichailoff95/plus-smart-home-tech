@@ -23,9 +23,9 @@ public class ProducerFabric {
         config.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG,
                 "org.apache.kafka.common.serialization.StringSerializer");
         config.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG,
-                "ru.practicum.serializer.CollectorAvroSerializer");
+                "serializer.SerializerAvro"); // ← ВАЖНО: правильный путь
 
-        // Добавляем настройки для надежности
+        // Настройки для надежности
         config.put(ProducerConfig.ACKS_CONFIG, "all");
         config.put(ProducerConfig.RETRIES_CONFIG, 3);
         config.put(ProducerConfig.MAX_IN_FLIGHT_REQUESTS_PER_CONNECTION, 1);

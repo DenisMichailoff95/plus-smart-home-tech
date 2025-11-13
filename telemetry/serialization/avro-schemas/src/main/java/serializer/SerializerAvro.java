@@ -6,14 +6,12 @@ import org.apache.avro.io.EncoderFactory;
 import org.apache.avro.specific.SpecificDatumWriter;
 import org.apache.avro.specific.SpecificRecordBase;
 import org.apache.kafka.common.serialization.Serializer;
-
 import java.io.ByteArrayOutputStream;
 
-@SuppressWarnings("unused")
 public class SerializerAvro implements Serializer<SpecificRecordBase> {
 
     @Override
-    public byte[] serialize(String topic, SpecificRecordBase input) throws SerializationException {
+    public byte[] serialize(String topic, SpecificRecordBase input) {
         if (input == null) {
             return null;
         }
@@ -32,7 +30,7 @@ public class SerializerAvro implements Serializer<SpecificRecordBase> {
             return outputStream.toByteArray();
 
         } catch (Exception e) {
-            throw new SerializationException("Ошибка сериализации экземпляра по topic:" + topic);
+            throw new RuntimeException("Ошибка сериализации экземпляра по topic:" + topic, e);
         }
     }
 }
