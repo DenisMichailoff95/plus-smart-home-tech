@@ -21,7 +21,7 @@ public class MotionSensorBuilder extends BaseSensorBuilder {
         return SensorEventAvro.newBuilder()
                 .setId(sensorEvent.getId())
                 .setHubId(sensorEvent.getHubId())
-                .setTimestamp(sensorEvent.getTimestamp())
+                .setTimestamp(sensorEvent.getTimestamp().toEpochMilli()) // Теперь long
                 .setPayload(new MotionSensorAvro(event.getLinkQuality(), event.getMotion(), event.getVoltage()))
                 .build();
     }

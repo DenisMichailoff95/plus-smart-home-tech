@@ -21,7 +21,7 @@ public class SwitchSensorBuilder extends BaseSensorBuilder {
         return SensorEventAvro.newBuilder()
                 .setId(sensorEvent.getId())
                 .setHubId(sensorEvent.getHubId())
-                .setTimestamp(sensorEvent.getTimestamp())
+                .setTimestamp(sensorEvent.getTimestamp().toEpochMilli()) // Теперь long
                 .setPayload(new SwitchSensorAvro(event.getState()))
                 .build();
     }

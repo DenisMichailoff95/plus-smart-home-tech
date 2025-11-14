@@ -21,7 +21,7 @@ public class TemperatureSensorBuilder extends BaseSensorBuilder {
         return SensorEventAvro.newBuilder()
                 .setId(sensorEvent.getId())
                 .setHubId(sensorEvent.getHubId())
-                .setTimestamp(sensorEvent.getTimestamp())
+                .setTimestamp(sensorEvent.getTimestamp().toEpochMilli()) // Теперь long
                 .setPayload(new TemperatureSensorAvro(event.getTemperatureC(), event.getTemperatureF()))
                 .build();
     }

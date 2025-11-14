@@ -23,7 +23,7 @@ public class ScenarioAddedBuilder extends BaseHubBuilder {
 
         return HubEventAvro.newBuilder()
                 .setHubId(hubEvent.getHubId())
-                .setTimestamp(hubEvent.getTimestamp())
+                .setTimestamp(hubEvent.getTimestamp().toEpochMilli()) // Теперь long
                 .setPayload(ScenarioAddedEventAvro.newBuilder()
                         .setName(event.getName())
                         .setConditions(mapConditionsToAvro(event.getConditions()))
@@ -44,20 +44,18 @@ public class ScenarioAddedBuilder extends BaseHubBuilder {
                 .setType(mapConditionType(condition.getType()))
                 .setOperation(mapConditionOperation(condition.getOperation()));
 
-        // Критически важная часть: правильная работа с union полем value
+        // Правильная работа с union полем value
         if (condition.getValue() != null) {
-            // Для SWITCH и MOTION используем boolean ветку union
             if (condition.getType() == ru.yandex.practicum.collector.enums.ScenarioConditionType.SWITCH ||
                     condition.getType() == ru.yandex.practicum.collector.enums.ScenarioConditionType.MOTION) {
-                // Преобразуем: 0 -> false, любое другое число -> true
+                // Для SWITCH и MOTION используем boolean
                 boolean boolValue = condition.getValue() != 0;
                 builder.setValue(boolValue);
             } else {
-                // Для остальных типов используем int ветку union
+                // Для остальных типов используем int
                 builder.setValue(condition.getValue());
             }
         }
-        // Если value null, оставляем как есть (используется default null из схемы)
 
         return builder.build();
     }
@@ -73,11 +71,9 @@ public class ScenarioAddedBuilder extends BaseHubBuilder {
                 .setSensorId(action.getSensorId())
                 .setType(mapActionType(action.getType()));
 
-        // Для DeviceActionAvro.value используется union{null, int}
         if (action.getValue() != null) {
             builder.setValue(action.getValue());
         }
-        // Если value null, оставляем как есть
 
         return builder.build();
     }
