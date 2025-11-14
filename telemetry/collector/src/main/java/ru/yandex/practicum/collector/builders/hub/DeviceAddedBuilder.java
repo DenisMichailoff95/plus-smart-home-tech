@@ -19,13 +19,15 @@ public class DeviceAddedBuilder extends BaseHubBuilder {
     public SpecificRecordBase toAvro(BaseHubEvent hubEvent) {
         DeviceAddedEvent event = (DeviceAddedEvent) hubEvent;
 
+        DeviceAddedEventAvro deviceAddedAvro = DeviceAddedEventAvro.newBuilder()
+                .setId(event.getId())
+                .setType(mapToDeviceTypeAvro(event.getDeviceType()))
+                .build();
+
         return HubEventAvro.newBuilder()
                 .setHubId(hubEvent.getHubId())
                 .setTimestamp(hubEvent.getTimestamp())
-                .setPayload(DeviceAddedEventAvro.newBuilder()
-                        .setId(event.getId())
-                        .setType(mapToDeviceTypeAvro(event.getDeviceType()))
-                        .build())
+                .setPayload(deviceAddedAvro)
                 .build();
     }
 

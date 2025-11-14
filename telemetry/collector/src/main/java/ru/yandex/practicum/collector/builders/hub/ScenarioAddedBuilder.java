@@ -26,56 +26,60 @@ public class ScenarioAddedBuilder extends BaseHubBuilder {
                 .setTimestamp(hubEvent.getTimestamp())
                 .setPayload(ScenarioAddedEventAvro.newBuilder()
                         .setName(event.getName())
-                        .setConditions(mapToConditionTypeAvro(event.getConditions()))
-                        .setActions(mapToDeviceActionAvro(event.getActions()))
+                        .setConditions(mapConditionsToAvro(event.getConditions()))
+                        .setActions(mapActionsToAvro(event.getActions()))
                         .build())
                 .build();
     }
 
-    private List<ScenarioConditionAvro> mapToConditionTypeAvro(List<ScenarioCondition> conditions) {
+    private List<ScenarioConditionAvro> mapConditionsToAvro(List<ScenarioCondition> conditions) {
         return conditions.stream()
-                .map(c -> {
-                    ScenarioConditionAvro.Builder builder = ScenarioConditionAvro.newBuilder()
-                            .setSensorId(c.getSensorId())
-                            .setType(mapConditionType(c.getType()))
-                            .setOperation(mapConditionOperation(c.getOperation()));
-
-                    // Правильная обработка union поля value
-                    if (c.getValue() != null) {
-                        // Для boolean условий используем boolean, для остальных - int
-                        if (c.getType() == ru.yandex.practicum.collector.enums.ScenarioConditionType.SWITCH ||
-                                c.getType() == ru.yandex.practicum.collector.enums.ScenarioConditionType.MOTION) {
-                            // Для SWITCH и MOTION используем boolean (true/false)
-                            boolean boolValue = c.getValue() != 0;
-                            builder.setValue(boolValue);
-                        } else {
-                            // Для остальных типов используем int
-                            builder.setValue(c.getValue());
-                        }
-                    }
-                    // Если value null, оставляем как есть (будет использовано значение по умолчанию null)
-
-                    return builder.build();
-                })
+                .map(this::mapConditionToAvro)
                 .toList();
     }
 
-    private List<DeviceActionAvro> mapToDeviceActionAvro(List<DeviceAction> deviceActions) {
-        return deviceActions.stream()
-                .map(da -> {
-                    DeviceActionAvro.Builder builder = DeviceActionAvro.newBuilder()
-                            .setSensorId(da.getSensorId())
-                            .setType(mapActionType(da.getType()));
+    private ScenarioConditionAvro mapConditionToAvro(ScenarioCondition condition) {
+        ScenarioConditionAvro.Builder builder = ScenarioConditionAvro.newBuilder()
+                .setSensorId(condition.getSensorId())
+                .setType(mapConditionType(condition.getType()))
+                .setOperation(mapConditionOperation(condition.getOperation()));
 
-                    // Правильная обработка optional поля value
-                    if (da.getValue() != null) {
-                        builder.setValue(da.getValue());
-                    }
-                    // Если value null, оставляем как есть (будет использовано значение по умолчанию null)
+        // Критически важная часть: правильная работа с union полем value
+        if (condition.getValue() != null) {
+            // Для SWITCH и MOTION используем boolean ветку union
+            if (condition.getType() == ru.yandex.practicum.collector.enums.ScenarioConditionType.SWITCH ||
+                    condition.getType() == ru.yandex.practicum.collector.enums.ScenarioConditionType.MOTION) {
+                // Преобразуем: 0 -> false, любое другое число -> true
+                boolean boolValue = condition.getValue() != 0;
+                builder.setValue(boolValue);
+            } else {
+                // Для остальных типов используем int ветку union
+                builder.setValue(condition.getValue());
+            }
+        }
+        // Если value null, оставляем как есть (используется default null из схемы)
 
-                    return builder.build();
-                })
+        return builder.build();
+    }
+
+    private List<DeviceActionAvro> mapActionsToAvro(List<DeviceAction> actions) {
+        return actions.stream()
+                .map(this::mapActionToAvro)
                 .toList();
+    }
+
+    private DeviceActionAvro mapActionToAvro(DeviceAction action) {
+        DeviceActionAvro.Builder builder = DeviceActionAvro.newBuilder()
+                .setSensorId(action.getSensorId())
+                .setType(mapActionType(action.getType()));
+
+        // Для DeviceActionAvro.value используется union{null, int}
+        if (action.getValue() != null) {
+            builder.setValue(action.getValue());
+        }
+        // Если value null, оставляем как есть
+
+        return builder.build();
     }
 
     private ConditionTypeAvro mapConditionType(ru.yandex.practicum.collector.enums.ScenarioConditionType type) {

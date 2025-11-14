@@ -18,10 +18,12 @@ public class ScenarioRemovedBuilder extends BaseHubBuilder {
     public SpecificRecordBase toAvro(BaseHubEvent hubEvent) {
         ScenarioRemovedEvent event = (ScenarioRemovedEvent) hubEvent;
 
+        ScenarioRemovedEventAvro scenarioRemovedAvro = new ScenarioRemovedEventAvro(event.getName());
+
         return HubEventAvro.newBuilder()
                 .setHubId(hubEvent.getHubId())
                 .setTimestamp(hubEvent.getTimestamp())
-                .setPayload(new ScenarioRemovedEventAvro(event.getName()))
+                .setPayload(scenarioRemovedAvro)
                 .build();
     }
 }

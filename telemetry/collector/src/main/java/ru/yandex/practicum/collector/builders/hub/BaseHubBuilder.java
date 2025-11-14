@@ -19,12 +19,17 @@ public abstract class BaseHubBuilder implements HubEventBuilder {
     @Override
     public void builder(BaseHubEvent event) {
         try {
+            log.debug("Building hub event: {}", event.getType());
             SpecificRecordBase avroEvent = toAvro(event);
+            log.debug("Successfully built Avro event for hub: {}", event.getHubId());
+
             producer.send(avroEvent, event.getHubId(), event.getTimestamp(), topic);
-            log.debug("Successfully built and sent hub event: {}", event.getType());
+            log.debug("Successfully sent hub event: {}", event.getType());
+
         } catch (Exception e) {
-            log.error("Error building hub event: {}", event, e);
-            throw new RuntimeException("Hub event building failed", e);
+            log.error("Error building hub event - Type: {}, Hub: {}",
+                    event.getType(), event.getHubId(), e);
+            throw new RuntimeException("Hub event building failed: " + e.getMessage(), e);
         }
     }
 

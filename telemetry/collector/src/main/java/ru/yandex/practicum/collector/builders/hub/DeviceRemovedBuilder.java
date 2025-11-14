@@ -18,10 +18,12 @@ public class DeviceRemovedBuilder extends BaseHubBuilder {
     public SpecificRecordBase toAvro(BaseHubEvent hubEvent) {
         DeviceRemovedEvent event = (DeviceRemovedEvent) hubEvent;
 
+        DeviceRemovedEventAvro deviceRemovedAvro = new DeviceRemovedEventAvro(event.getId());
+
         return HubEventAvro.newBuilder()
                 .setHubId(hubEvent.getHubId())
                 .setTimestamp(hubEvent.getTimestamp())
-                .setPayload(new DeviceRemovedEventAvro(event.getId()))
+                .setPayload(deviceRemovedAvro)
                 .build();
     }
 }
