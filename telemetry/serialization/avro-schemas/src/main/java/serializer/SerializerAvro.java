@@ -31,7 +31,9 @@ public class SerializerAvro implements Serializer<SpecificRecordBase> {
 
             return outputStream.toByteArray();
         } catch (Exception e) {
-            throw new RuntimeException("Ошибка сериализации Avro данных для топика: " + topic + ", схема: " + input.getSchema(), e);
+            throw new SerializationException("Ошибка сериализации Avro данных для топика: " + topic +
+                    ", схема: " + input.getSchema().getFullName() +
+                    ", ошибка: " + e.getMessage());
         }
     }
 

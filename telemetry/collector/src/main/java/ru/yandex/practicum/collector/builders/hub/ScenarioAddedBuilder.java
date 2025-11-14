@@ -45,17 +45,15 @@ public class ScenarioAddedBuilder extends BaseHubBuilder {
                         // Для boolean условий используем boolean, для остальных - int
                         if (c.getType() == ru.yandex.practicum.collector.enums.ScenarioConditionType.SWITCH ||
                                 c.getType() == ru.yandex.practicum.collector.enums.ScenarioConditionType.MOTION) {
-                            // Для SWITCH и MOTION используем boolean (1 = true, 0 = false)
+                            // Для SWITCH и MOTION используем boolean (true/false)
                             boolean boolValue = c.getValue() != 0;
                             builder.setValue(boolValue);
                         } else {
                             // Для остальных типов используем int
                             builder.setValue(c.getValue());
                         }
-                    } else {
-                        // Если value null, устанавливаем явно null
-                        builder.setValue(null);
                     }
+                    // Если value null, оставляем как есть (будет использовано значение по умолчанию null)
 
                     return builder.build();
                 })
@@ -72,10 +70,8 @@ public class ScenarioAddedBuilder extends BaseHubBuilder {
                     // Правильная обработка optional поля value
                     if (da.getValue() != null) {
                         builder.setValue(da.getValue());
-                    } else {
-                        // Для optional полей можно не устанавливать значение - будет null по умолчанию
-                        builder.setValue(null);
                     }
+                    // Если value null, оставляем как есть (будет использовано значение по умолчанию null)
 
                     return builder.build();
                 })

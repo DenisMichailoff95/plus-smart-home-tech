@@ -35,8 +35,9 @@ public class CollectorServiceImpl implements CollectorService {
             log.debug("Successfully processed sensor event: {}", sensor);
 
         } catch (Exception e) {
-            log.error("Failed to process sensor event: {}", sensor, e);
-            throw new RuntimeException("Sensor event processing failed", e);
+            log.error("Failed to process sensor event - Type: {}, Hub: {}, Sensor: {}. Error: {}",
+                    sensor.getType(), sensor.getHubId(), sensor.getId(), e.getMessage(), e);
+            throw new RuntimeException("Sensor event processing failed: " + e.getMessage(), e);
         }
     }
 
@@ -55,8 +56,9 @@ public class CollectorServiceImpl implements CollectorService {
             log.debug("Successfully processed hub event: {}", hub);
 
         } catch (Exception e) {
-            log.error("Failed to process hub event: {}", hub, e);
-            throw new RuntimeException("Hub event processing failed", e);
+            log.error("Failed to process hub event - Type: {}, Hub: {}. Error: {}",
+                    hub.getType(), hub.getHubId(), e.getMessage(), e);
+            throw new RuntimeException("Hub event processing failed: " + e.getMessage(), e);
         }
     }
 }
