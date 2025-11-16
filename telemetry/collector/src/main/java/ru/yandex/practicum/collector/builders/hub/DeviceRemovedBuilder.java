@@ -22,7 +22,7 @@ public class DeviceRemovedBuilder extends BaseHubBuilder {
 
         return HubEventAvro.newBuilder()
                 .setHubId(hubEvent.getHubId())
-                .setTimestamp(hubEvent.getTimestamp().toEpochMilli()) // Теперь long
+                .setTimestamp(hubEvent.getTimestamp())
                 .setPayload(deviceRemovedAvro)
                 .build();
     }

@@ -21,7 +21,7 @@ public class LightSensorBuilder extends BaseSensorBuilder {
         return SensorEventAvro.newBuilder()
                 .setId(sensorEvent.getId())
                 .setHubId(sensorEvent.getHubId())
-                .setTimestamp(sensorEvent.getTimestamp().toEpochMilli()) // Теперь long
+                .setTimestamp(sensorEvent.getTimestamp())
                 .setPayload(new LightSensorAvro(event.getLinkQuality(), event.getLuminosity()))
                 .build();
     }

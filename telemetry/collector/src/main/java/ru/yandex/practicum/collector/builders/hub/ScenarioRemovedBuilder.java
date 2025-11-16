@@ -22,7 +22,7 @@ public class ScenarioRemovedBuilder extends BaseHubBuilder {
 
         return HubEventAvro.newBuilder()
                 .setHubId(hubEvent.getHubId())
-                .setTimestamp(hubEvent.getTimestamp().toEpochMilli()) // Теперь long
+                .setTimestamp(hubEvent.getTimestamp())
                 .setPayload(scenarioRemovedAvro)
                 .build();
     }

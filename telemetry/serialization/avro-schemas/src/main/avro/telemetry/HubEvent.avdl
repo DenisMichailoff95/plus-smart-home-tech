@@ -33,7 +33,7 @@ protocol HubEventProtocol {
 
 	record DeviceAddedEventAvro {
 		string id;
-		DeviceTypeAvro type;  // ← ИСПРАВЛЕНО: было device_type
+		DeviceTypeAvro type;
 	}
 
 	record DeviceRemovedEventAvro {
@@ -65,7 +65,7 @@ protocol HubEventProtocol {
 
 	record HubEventAvro {
 		string hub_id;
-		long timestamp;
+		timestamp_ms timestamp;
 		union {
 			DeviceAddedEventAvro,
 			DeviceRemovedEventAvro,
