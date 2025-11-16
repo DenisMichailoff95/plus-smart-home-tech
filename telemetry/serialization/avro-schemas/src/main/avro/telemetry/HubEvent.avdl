@@ -30,9 +30,10 @@ protocol HubEventProtocol {
 		INVERSE,
 		SET_VALUE
 	}
+
 	record DeviceAddedEventAvro {
 		string id;
-		DeviceTypeAvro device_type;
+		DeviceTypeAvro type;  // ← ИСПРАВЛЕНО: было device_type
 	}
 
 	record DeviceRemovedEventAvro {
@@ -72,5 +73,4 @@ protocol HubEventProtocol {
 			ScenarioRemovedEventAvro
 		} payload;
 	}
-
 }

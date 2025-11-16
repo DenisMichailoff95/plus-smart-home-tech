@@ -21,12 +21,12 @@ public class DeviceAddedBuilder extends BaseHubBuilder {
 
         DeviceAddedEventAvro deviceAddedAvro = DeviceAddedEventAvro.newBuilder()
                 .setId(event.getId())
-                .setDeviceType(mapToDeviceTypeAvro(event.getDeviceType())) // Обратите внимание на имя поля!
+                .setType(mapToDeviceTypeAvro(event.getDeviceType()))  // ← ИСПРАВЛЕНО: setType вместо setDeviceType
                 .build();
 
         return HubEventAvro.newBuilder()
                 .setHubId(hubEvent.getHubId())
-                .setTimestamp(hubEvent.getTimestamp().toEpochMilli()) // Теперь long
+                .setTimestamp(hubEvent.getTimestamp().toEpochMilli())
                 .setPayload(deviceAddedAvro)
                 .build();
     }
