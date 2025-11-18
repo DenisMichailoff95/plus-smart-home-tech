@@ -79,8 +79,15 @@
             </dependency>
 
             <dependency>
+                <groupId>net.devh</groupId>
+                <artifactId>grpc-client-spring-boot-starter</artifactId>
+                <version>${grpc-spring-boot-starter.version}</version>
+            </dependency>
+
+            <dependency>
                 <groupId>org.springframework.shell</groupId>
                 <artifactId>spring-shell-starter</artifactId>
+                <version>${spring-shell.version}</version>
             </dependency>
 
             <dependency>
@@ -95,7 +102,12 @@
                 <version>${grpc.version}</version>
             </dependency>
 
-
+            <!-- PostgreSQL -->
+            <dependency>
+                <groupId>org.postgresql</groupId>
+                <artifactId>postgresql</artifactId>
+                <version>42.7.3</version>
+            </dependency>
 
             <!--    / GRPC dependencies management        -->
         </dependencies>
@@ -126,5 +138,4 @@
             </plugins>
         </pluginManagement>
     </build>
-
 </project>

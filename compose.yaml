@@ -1,9 +1,32 @@
 services:
+  db:
+    image: postgres:16.1
+    container_name: db
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_PASSWORD=password
+      - POSTGRES_USER=username
+      - POSTGRES_DB=scenario-db
+
+  analyzer:
+    build: telemetry/analyzer
+    container_name: analyzer
+    ports:
+      - "8082:8082"
+    environment:
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/scenario-db
+      - SPRING_DATASOURCE_USERNAME=username
+      - SPRING_DATASOURCE_PASSWORD=password
+
   collector:
     build: telemetry/collector
     container_name: collector
     ports:
-      - "8080:8080"
+      - "59091:59091"
+    environment:
+      - SPRING_KAFKA_BOOTSTRAP_SERVERS=kafka:9092
 
   kafka:
     image: confluentinc/confluent-local:7.4.3
@@ -12,6 +35,8 @@ services:
     ports:
       - "9092:9092" # for client connections
       - "9101:9101" # JMX
+      - "29092:29092"
+      - "8082:8082"
     restart: unless-stopped
     environment:
       KAFKA_NODE_ID: 1
