@@ -26,17 +26,16 @@ public class HubRouterClient {
 
     public void sendAction(Action action) {
         try {
-            log.info("Начало отправки действия в Hub Router");
             DeviceActionRequest deviceActionRequest = buildActionRequest(action);
-            log.info("Отправка запроса: hubId={}, scenario={}, sensorId={}, type={}, value={}",
+            log.info("Отправка действия в Hub Router: hubId={}, scenario={}, sensorId={}, type={}, value={}",
                     deviceActionRequest.getHubId(),
                     deviceActionRequest.getScenarioName(),
                     deviceActionRequest.getAction().getSensorId(),
                     deviceActionRequest.getAction().getType(),
                     deviceActionRequest.getAction().getValue());
 
-            var response = hubRouterClient.handleDeviceAction(deviceActionRequest);
-            log.info("Действие успешно отправлено в hub-router, получен ответ: {}", response);
+            hubRouterClient.handleDeviceAction(deviceActionRequest);
+            log.info("Действие успешно отправлено в hub-router");
         } catch (Exception e) {
             log.error("Ошибка при отправке действия в Hub Router", e);
             throw new RuntimeException("Failed to send action to Hub Router", e);

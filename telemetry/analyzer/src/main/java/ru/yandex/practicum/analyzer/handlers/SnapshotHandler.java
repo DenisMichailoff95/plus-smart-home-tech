@@ -30,40 +30,26 @@ public class SnapshotHandler {
 
         log.info("Обработка снапшота для хаба {}. Найдено сценариев: {}",
                 sensorsSnapshot.getHubId(), scenarios.size());
-        log.info("Состояния датчиков в снапшоте: {}", sensorStateMap.keySet());
 
         for (Scenario scenario : scenarios) {
             boolean shouldExecute = handleScenario(scenario, sensorStateMap);
             if (shouldExecute) {
                 log.info("Сценарий '{}' выполняется, отправка действий", scenario.getName());
                 sendScenarioActions(scenario);
-            } else {
-                log.info("Сценарий '{}' не выполняется", scenario.getName());
             }
         }
     }
 
     private boolean handleScenario(Scenario scenario, Map<String, SensorStateAvro> sensorStateMap) {
         List<Condition> conditions = conditionRepository.findAllByScenario(scenario);
-        log.info("Проверка сценария '{}'. Условий: {}", scenario.getName(), conditions.size());
 
         if (conditions.isEmpty()) {
             log.warn("Сценарий '{}' не имеет условий", scenario.getName());
             return false;
         }
 
-        boolean allConditionsMet = true;
-        for (Condition condition : conditions) {
-            boolean conditionMet = checkCondition(condition, sensorStateMap);
-            log.info("Условие: датчик={}, тип={}, операция={}, целевое={}, выполнено={}",
-                    condition.getSensor().getId(), condition.getType(),
-                    condition.getOperation(), condition.getValue(), conditionMet);
-
-            if (!conditionMet) {
-                allConditionsMet = false;
-                // Не прерываем цикл для логирования всех условий
-            }
-        }
+        boolean allConditionsMet = conditions.stream()
+                .allMatch(condition -> checkCondition(condition, sensorStateMap));
 
         log.info("Сценарий '{}': все условия выполнены - {}", scenario.getName(), allConditionsMet);
         return allConditionsMet;
@@ -79,58 +65,41 @@ public class SnapshotHandler {
         }
 
         try {
-            Object sensorData = sensorState.getData();
-            if (sensorData == null) {
-                log.warn("Данные датчика {} равны null", sensorId);
-                return false;
+            switch (condition.getType()) {
+                case LUMINOSITY -> {
+                    LightSensorAvro lightSensor = (LightSensorAvro) sensorState.getData();
+                    return handleOperation(condition, lightSensor.getLuminosity());
+                }
+                case TEMPERATURE -> {
+                    ClimateSensorAvro temperatureSensor = (ClimateSensorAvro) sensorState.getData();
+                    return handleOperation(condition, temperatureSensor.getTemperatureC());
+                }
+                case MOTION -> {
+                    MotionSensorAvro motionSensor = (MotionSensorAvro) sensorState.getData();
+                    int motionValue = motionSensor.getMotion() ? 1 : 0;
+                    return handleOperation(condition, motionValue);
+                }
+                case SWITCH -> {
+                    SwitchSensorAvro switchSensor = (SwitchSensorAvro) sensorState.getData();
+                    int switchValue = switchSensor.getState() ? 1 : 0;
+                    return handleOperation(condition, switchValue);
+                }
+                case CO2LEVEL -> {
+                    ClimateSensorAvro climateSensor = (ClimateSensorAvro) sensorState.getData();
+                    return handleOperation(condition, climateSensor.getCo2Level());
+                }
+                case HUMIDITY -> {
+                    ClimateSensorAvro climateSensor = (ClimateSensorAvro) sensorState.getData();
+                    return handleOperation(condition, climateSensor.getHumidity());
+                }
+                default -> {
+                    log.warn("Неизвестный тип условия: {}", condition.getType());
+                    return false;
+                }
             }
-
-            Integer currentValue = extractSensorValue(sensorData, condition.getType());
-            if (currentValue == null) {
-                log.warn("Не удалось извлечь значение для датчика {} типа {}", sensorId, condition.getType());
-                return false;
-            }
-
-            boolean result = handleOperation(condition, currentValue);
-            log.debug("Условие {}: датчик={}, текущее={}, целевое={}, операция={}, результат={}",
-                    condition.getType(), sensorId, currentValue, condition.getValue(),
-                    condition.getOperation(), result);
-            return result;
-
         } catch (Exception e) {
             log.error("Ошибка при проверке условия для датчика {}", sensorId, e);
             return false;
-        }
-    }
-
-    private Integer extractSensorValue(Object sensorData, ConditionTypeAvro conditionType) {
-        try {
-            switch (conditionType) {
-                case LUMINOSITY:
-                    LightSensorAvro lightSensor = (LightSensorAvro) sensorData;
-                    return lightSensor.getLuminosity();
-                case TEMPERATURE:
-                    ClimateSensorAvro climateSensor = (ClimateSensorAvro) sensorData;
-                    return climateSensor.getTemperatureC();
-                case MOTION:
-                    MotionSensorAvro motionSensor = (MotionSensorAvro) sensorData;
-                    return motionSensor.getMotion() ? 1 : 0;
-                case SWITCH:
-                    SwitchSensorAvro switchSensor = (SwitchSensorAvro) sensorData;
-                    return switchSensor.getState() ? 1 : 0;
-                case CO2LEVEL:
-                    ClimateSensorAvro co2Sensor = (ClimateSensorAvro) sensorData;
-                    return co2Sensor.getCo2Level();
-                case HUMIDITY:
-                    ClimateSensorAvro humiditySensor = (ClimateSensorAvro) sensorData;
-                    return humiditySensor.getHumidity();
-                default:
-                    log.warn("Неизвестный тип условия: {}", conditionType);
-                    return null;
-            }
-        } catch (ClassCastException e) {
-            log.error("Ошибка приведения типа для условия {}", conditionType, e);
-            return null;
         }
     }
 
@@ -143,7 +112,6 @@ public class SnapshotHandler {
         Integer targetValue = condition.getValue();
 
         if (targetValue == null) {
-            log.warn("Целевое значение условия равно null");
             return false;
         }
 
@@ -170,7 +138,6 @@ public class SnapshotHandler {
                         scenario.getName(), action.getSensor().getId(),
                         action.getType(), action.getValue());
                 hubRouterClient.sendAction(action);
-                log.info("Действие успешно отправлено");
             } catch (Exception e) {
                 log.error("Ошибка при отправке действия для сценария '{}'", scenario.getName(), e);
             }

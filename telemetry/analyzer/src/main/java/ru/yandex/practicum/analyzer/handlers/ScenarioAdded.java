@@ -44,18 +44,6 @@ public class ScenarioAdded implements HubEventHandler {
                     return scenarioRepository.save(newScenario);
                 });
 
-        // Проверяем существование датчиков в условиях
-        if (!checkSensorsInScenarioConditions(scenarioAddedEvent, hubId)) {
-            log.warn("Не все датчики из условий сценария '{}' найдены в хабе {}", scenarioName, hubId);
-            return;
-        }
-
-        // Проверяем существование датчиков в действиях
-        if (!checkSensorsInScenarioActions(scenarioAddedEvent, hubId)) {
-            log.warn("Не все датчики из действий сценария '{}' найдены в хабе {}", scenarioName, hubId);
-            return;
-        }
-
         // Сохраняем условия
         Set<Condition> conditions = buildToCondition(scenarioAddedEvent, scenario);
         conditionRepository.saveAll(conditions);
@@ -83,11 +71,14 @@ public class ScenarioAdded implements HubEventHandler {
     private Set<Condition> buildToCondition(ScenarioAddedEventAvro scenarioAddedEvent, Scenario scenario) {
         return scenarioAddedEvent.getConditions().stream()
                 .map(c -> {
-                    Sensor sensor = sensorRepository.findById(c.getSensorId())
-                            .orElseThrow(() -> new IllegalArgumentException("Датчик не найден: " + c.getSensorId()));
+                    Optional<Sensor> sensorOpt = sensorRepository.findById(c.getSensorId());
+                    if (sensorOpt.isEmpty()) {
+                        log.warn("Датчик {} не найден при создании условия", c.getSensorId());
+                        throw new IllegalArgumentException("Датчик не найден: " + c.getSensorId());
+                    }
 
                     return Condition.builder()
-                            .sensor(sensor)
+                            .sensor(sensorOpt.get())
                             .scenario(scenario)
                             .type(c.getType())
                             .operation(c.getOperation())
@@ -100,11 +91,14 @@ public class ScenarioAdded implements HubEventHandler {
     private Set<Action> buildToAction(ScenarioAddedEventAvro scenarioAddedEvent, Scenario scenario) {
         return scenarioAddedEvent.getActions().stream()
                 .map(action -> {
-                    Sensor sensor = sensorRepository.findById(action.getSensorId())
-                            .orElseThrow(() -> new IllegalArgumentException("Датчик не найден: " + action.getSensorId()));
+                    Optional<Sensor> sensorOpt = sensorRepository.findById(action.getSensorId());
+                    if (sensorOpt.isEmpty()) {
+                        log.warn("Датчик {} не найден при создании действия", action.getSensorId());
+                        throw new IllegalArgumentException("Датчик не найден: " + action.getSensorId());
+                    }
 
                     return Action.builder()
-                            .sensor(sensor)
+                            .sensor(sensorOpt.get())
                             .scenario(scenario)
                             .type(action.getType())
                             .value(action.getValue())
@@ -121,23 +115,5 @@ public class ScenarioAdded implements HubEventHandler {
         } else {
             throw new IllegalArgumentException("Неподдерживаемый тип значения: " + value.getClass());
         }
-    }
-
-    private Boolean checkSensorsInScenarioConditions(ScenarioAddedEventAvro scenarioAddedEvent, String hubId) {
-        return sensorRepository.existsByIdInAndHubId(
-                scenarioAddedEvent.getConditions().stream()
-                        .map(ScenarioConditionAvro::getSensorId)
-                        .toList(),
-                hubId
-        );
-    }
-
-    private Boolean checkSensorsInScenarioActions(ScenarioAddedEventAvro scenarioAddedEvent, String hubId) {
-        return sensorRepository.existsByIdInAndHubId(
-                scenarioAddedEvent.getActions().stream()
-                        .map(DeviceActionAvro::getSensorId)
-                        .toList(),
-                hubId
-        );
     }
 }
