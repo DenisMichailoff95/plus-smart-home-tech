@@ -30,21 +30,40 @@ public class SnapshotHandler {
 
         log.info("Обработка снапшота для хаба {}. Найдено сценариев: {}",
                 sensorsSnapshot.getHubId(), scenarios.size());
+        log.info("Состояния датчиков в снапшоте: {}", sensorStateMap.keySet());
 
-        scenarios.stream()
-                .filter(scenario -> handleScenario(scenario, sensorStateMap))
-                .forEach(scenario -> {
-                    log.info("Сценарий '{}' выполняется, отправка действий", scenario.getName());
-                    sendScenarioActions(scenario);
-                });
+        for (Scenario scenario : scenarios) {
+            boolean shouldExecute = handleScenario(scenario, sensorStateMap);
+            if (shouldExecute) {
+                log.info("Сценарий '{}' выполняется, отправка действий", scenario.getName());
+                sendScenarioActions(scenario);
+            } else {
+                log.info("Сценарий '{}' не выполняется", scenario.getName());
+            }
+        }
     }
 
     private boolean handleScenario(Scenario scenario, Map<String, SensorStateAvro> sensorStateMap) {
         List<Condition> conditions = conditionRepository.findAllByScenario(scenario);
         log.info("Проверка сценария '{}'. Условий: {}", scenario.getName(), conditions.size());
 
-        boolean allConditionsMet = conditions.stream()
-                .allMatch(condition -> checkCondition(condition, sensorStateMap));
+        if (conditions.isEmpty()) {
+            log.warn("Сценарий '{}' не имеет условий", scenario.getName());
+            return false;
+        }
+
+        boolean allConditionsMet = true;
+        for (Condition condition : conditions) {
+            boolean conditionMet = checkCondition(condition, sensorStateMap);
+            log.info("Условие: датчик={}, тип={}, операция={}, целевое={}, выполнено={}",
+                    condition.getSensor().getId(), condition.getType(),
+                    condition.getOperation(), condition.getValue(), conditionMet);
+
+            if (!conditionMet) {
+                allConditionsMet = false;
+                // Не прерываем цикл для логирования всех условий
+            }
+        }
 
         log.info("Сценарий '{}': все условия выполнены - {}", scenario.getName(), allConditionsMet);
         return allConditionsMet;
@@ -60,61 +79,58 @@ public class SnapshotHandler {
         }
 
         try {
-            boolean result = false;
-            switch (condition.getType()) {
-                case LUMINOSITY -> {
-                    LightSensorAvro lightSensor = (LightSensorAvro) sensorState.getData();
-                    result = handleOperation(condition, lightSensor.getLuminosity());
-                    log.debug("Условие LUMINOSITY: датчик={}, текущее={}, целевое={}, операция={}, результат={}",
-                            sensorId, lightSensor.getLuminosity(), condition.getValue(),
-                            condition.getOperation(), result);
-                }
-                case TEMPERATURE -> {
-                    ClimateSensorAvro climateSensor = (ClimateSensorAvro) sensorState.getData();
-                    result = handleOperation(condition, climateSensor.getTemperatureC());
-                    log.debug("Условие TEMPERATURE: датчик={}, текущее={}, целевое={}, операция={}, результат={}",
-                            sensorId, climateSensor.getTemperatureC(), condition.getValue(),
-                            condition.getOperation(), result);
-                }
-                case MOTION -> {
-                    MotionSensorAvro motionSensor = (MotionSensorAvro) sensorState.getData();
-                    int motionValue = motionSensor.getMotion() ? 1 : 0;
-                    result = handleOperation(condition, motionValue);
-                    log.debug("Условие MOTION: датчик={}, текущее={}, целевое={}, операция={}, результат={}",
-                            sensorId, motionSensor.getMotion(), condition.getValue(),
-                            condition.getOperation(), result);
-                }
-                case SWITCH -> {
-                    SwitchSensorAvro switchSensor = (SwitchSensorAvro) sensorState.getData();
-                    int switchValue = switchSensor.getState() ? 1 : 0;
-                    result = handleOperation(condition, switchValue);
-                    log.debug("Условие SWITCH: датчик={}, текущее={}, целевое={}, операция={}, результат={}",
-                            sensorId, switchSensor.getState(), condition.getValue(),
-                            condition.getOperation(), result);
-                }
-                case CO2LEVEL -> {
-                    ClimateSensorAvro climateSensor = (ClimateSensorAvro) sensorState.getData();
-                    result = handleOperation(condition, climateSensor.getCo2Level());
-                    log.debug("Условие CO2LEVEL: датчик={}, текущее={}, целевое={}, операция={}, результат={}",
-                            sensorId, climateSensor.getCo2Level(), condition.getValue(),
-                            condition.getOperation(), result);
-                }
-                case HUMIDITY -> {
-                    ClimateSensorAvro climateSensor = (ClimateSensorAvro) sensorState.getData();
-                    result = handleOperation(condition, climateSensor.getHumidity());
-                    log.debug("Условие HUMIDITY: датчик={}, текущее={}, целевое={}, операция={}, результат={}",
-                            sensorId, climateSensor.getHumidity(), condition.getValue(),
-                            condition.getOperation(), result);
-                }
-                default -> {
-                    log.warn("Неизвестный тип условия: {}", condition.getType());
-                    return false;
-                }
+            Object sensorData = sensorState.getData();
+            if (sensorData == null) {
+                log.warn("Данные датчика {} равны null", sensorId);
+                return false;
             }
+
+            Integer currentValue = extractSensorValue(sensorData, condition.getType());
+            if (currentValue == null) {
+                log.warn("Не удалось извлечь значение для датчика {} типа {}", sensorId, condition.getType());
+                return false;
+            }
+
+            boolean result = handleOperation(condition, currentValue);
+            log.debug("Условие {}: датчик={}, текущее={}, целевое={}, операция={}, результат={}",
+                    condition.getType(), sensorId, currentValue, condition.getValue(),
+                    condition.getOperation(), result);
             return result;
+
         } catch (Exception e) {
             log.error("Ошибка при проверке условия для датчика {}", sensorId, e);
             return false;
+        }
+    }
+
+    private Integer extractSensorValue(Object sensorData, ConditionTypeAvro conditionType) {
+        try {
+            switch (conditionType) {
+                case LUMINOSITY:
+                    LightSensorAvro lightSensor = (LightSensorAvro) sensorData;
+                    return lightSensor.getLuminosity();
+                case TEMPERATURE:
+                    ClimateSensorAvro climateSensor = (ClimateSensorAvro) sensorData;
+                    return climateSensor.getTemperatureC();
+                case MOTION:
+                    MotionSensorAvro motionSensor = (MotionSensorAvro) sensorData;
+                    return motionSensor.getMotion() ? 1 : 0;
+                case SWITCH:
+                    SwitchSensorAvro switchSensor = (SwitchSensorAvro) sensorData;
+                    return switchSensor.getState() ? 1 : 0;
+                case CO2LEVEL:
+                    ClimateSensorAvro co2Sensor = (ClimateSensorAvro) sensorData;
+                    return co2Sensor.getCo2Level();
+                case HUMIDITY:
+                    ClimateSensorAvro humiditySensor = (ClimateSensorAvro) sensorData;
+                    return humiditySensor.getHumidity();
+                default:
+                    log.warn("Неизвестный тип условия: {}", conditionType);
+                    return null;
+            }
+        } catch (ClassCastException e) {
+            log.error("Ошибка приведения типа для условия {}", conditionType, e);
+            return null;
         }
     }
 
@@ -127,38 +143,37 @@ public class SnapshotHandler {
         Integer targetValue = condition.getValue();
 
         if (targetValue == null) {
+            log.warn("Целевое значение условия равно null");
             return false;
         }
 
         switch (conditionOperation) {
-            case EQUALS -> {
+            case EQUALS:
                 return targetValue.equals(currentValue);
-            }
-            case LOWER_THAN -> {
+            case LOWER_THAN:
                 return currentValue < targetValue;
-            }
-            case GREATER_THAN -> {
+            case GREATER_THAN:
                 return currentValue > targetValue;
-            }
-            default -> {
+            default:
                 log.warn("Неизвестная операция: {}", conditionOperation);
                 return false;
-            }
         }
     }
 
     private void sendScenarioActions(Scenario scenario) {
         List<ru.yandex.practicum.analyzer.model.Action> actions = actionRepository.findAllByScenario(scenario);
         log.info("Отправка {} действий для сценария '{}'", actions.size(), scenario.getName());
-        actions.forEach(action -> {
+
+        for (ru.yandex.practicum.analyzer.model.Action action : actions) {
             try {
-                hubRouterClient.sendAction(action);
-                log.info("Действие отправлено: сценарий={}, датчик={}, тип={}, значение={}",
+                log.info("Отправка действия: сценарий={}, датчик={}, тип={}, значение={}",
                         scenario.getName(), action.getSensor().getId(),
                         action.getType(), action.getValue());
+                hubRouterClient.sendAction(action);
+                log.info("Действие успешно отправлено");
             } catch (Exception e) {
                 log.error("Ошибка при отправке действия для сценария '{}'", scenario.getName(), e);
             }
-        });
+        }
     }
 }

@@ -29,25 +29,32 @@ public class SnapshotProcessor implements Runnable {
         try {
             consumer.subscribe(List.of(topic));
             Runtime.getRuntime().addShutdownHook(new Thread(consumer::wakeup));
+            log.info("SnapshotProcessor запущен и подписан на топик: {}", topic);
 
             while (true) {
                 ConsumerRecords<String, SensorsSnapshotAvro> records = consumer.poll(Duration.ofMillis(1000));
+                log.info("Получено {} записей из топика {}", records.count(), topic);
 
                 for (ConsumerRecord<String, SensorsSnapshotAvro> record : records) {
                     SensorsSnapshotAvro sensorsSnapshot = record.value();
-                    log.info("Получен снимок умного дома: {}", sensorsSnapshot);
+                    log.info("Обработка снапшота: hubId={}, timestamp={}, sensors={}",
+                            sensorsSnapshot.getHubId(),
+                            sensorsSnapshot.getTimestamp(),
+                            sensorsSnapshot.getSensorsState().keySet());
                     snapshotHandler.buildSnapshot(sensorsSnapshot);
                 }
                 consumer.commitSync();
             }
         } catch (WakeupException ignored) {
+            log.info("SnapshotProcessor остановлен");
         } catch (Exception e) {
-            log.error("Ошибка получения данных {}", topic);
+            log.error("Ошибка получения данных из топика {}", topic, e);
         } finally {
             try {
                 consumer.commitSync();
             } finally {
                 consumer.close();
+                log.info("Consumer закрыт");
             }
         }
     }

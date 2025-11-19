@@ -32,10 +32,12 @@ public class HubEventProcessor implements Runnable {
         try {
             consumer.subscribe(List.of(topic));
             Runtime.getRuntime().addShutdownHook(new Thread(consumer::wakeup));
+            log.info("HubEventProcessor запущен и подписан на топик: {}", topic);
             Map<String, HubEventHandler> mapBuilder = hubHandler.getHandlers();
 
             while (true) {
                 ConsumerRecords<String, HubEventAvro> records = consumer.poll(Duration.ofMillis(1000));
+                log.info("Получено {} записей из топика {}", records.count(), topic);
 
                 for (ConsumerRecord<String, HubEventAvro> record : records) {
                     HubEventAvro event = record.value();
@@ -43,20 +45,24 @@ public class HubEventProcessor implements Runnable {
                     log.info("Получение хаба {}", payloadName);
                     if (mapBuilder.containsKey(payloadName)) {
                         mapBuilder.get(payloadName).handle(event);
+                        log.info("Обработчик успешно выполнен для события {}", payloadName);
                     } else {
+                        log.error("Нет обработчика для события {}", event);
                         throw new IllegalArgumentException("Нет обработчика для события " + event);
                     }
                 }
                 consumer.commitSync();
             }
         } catch (WakeupException ignored) {
+            log.info("HubEventProcessor остановлен");
         } catch (Exception e) {
-            log.error("Ошибка получения данных {}", topic);
+            log.error("Ошибка получения данных {}", topic, e);
         } finally {
             try {
                 consumer.commitSync();
             } finally {
                 consumer.close();
+                log.info("Consumer закрыт");
             }
         }
     }

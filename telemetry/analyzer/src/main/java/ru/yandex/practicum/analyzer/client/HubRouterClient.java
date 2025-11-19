@@ -25,9 +25,22 @@ public class HubRouterClient {
     }
 
     public void sendAction(Action action) {
-        DeviceActionRequest deviceActionRequest = buildActionRequest(action);
-        hubRouterClient.handleDeviceAction(deviceActionRequest);
-        log.info("Действие {} отправлено в hub-router", deviceActionRequest);
+        try {
+            log.info("Начало отправки действия в Hub Router");
+            DeviceActionRequest deviceActionRequest = buildActionRequest(action);
+            log.info("Отправка запроса: hubId={}, scenario={}, sensorId={}, type={}, value={}",
+                    deviceActionRequest.getHubId(),
+                    deviceActionRequest.getScenarioName(),
+                    deviceActionRequest.getAction().getSensorId(),
+                    deviceActionRequest.getAction().getType(),
+                    deviceActionRequest.getAction().getValue());
+
+            var response = hubRouterClient.handleDeviceAction(deviceActionRequest);
+            log.info("Действие успешно отправлено в hub-router, получен ответ: {}", response);
+        } catch (Exception e) {
+            log.error("Ошибка при отправке действия в Hub Router", e);
+            throw new RuntimeException("Failed to send action to Hub Router", e);
+        }
     }
 
     private DeviceActionRequest buildActionRequest(Action action) {
@@ -37,7 +50,7 @@ public class HubRouterClient {
                 .setAction(DeviceActionProto.newBuilder()
                         .setSensorId(action.getSensor().getId())
                         .setType(actionTypeProto(action.getType()))
-                        .setValue(action.getValue())
+                        .setValue(action.getValue() != null ? action.getValue() : 0)
                         .build())
                 .setTimestamp(setTimestamp())
                 .build();
