@@ -1,34 +1,15 @@
 services:
-  db:
-    image: postgres:16.1
-    container_name: db
-#    networks:
-#      - net
+  postgres:
+    image: postgres:13
+    container_name: postgres
+    environment:
+      POSTGRES_DB: analyzer
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
     ports:
       - "5432:5432"
-    environment:
-      - POSTGRES_PASSWORD=password
-      - POSTGRES_USER=username
-      - POSTGRES_DB=scenario-db
-
-#  analyzer:
-#    build: telemetry/analyzer
-#    container_name: analyzer
-#    networks:
-#      - net
-#    environment:
-#      spring__kafka__producer__bootstrap-servers: kafka:9092
-#      spring__datasource__url: jdbc:postgresql://db:5432/scenario-db
-
-  #  collector:
-#    build: telemetry/collector
-#    container_name: collector
-#    ports:
-#      - "59091:59091"
-#    networks:
-#      - net
-#    environment:
-#      spring__kafka__producer__bootstrap-servers: kafka:9092
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
 
   kafka:
     image: confluentinc/confluent-local:7.4.3
@@ -37,10 +18,6 @@ services:
     ports:
       - "9092:9092" # for client connections
       - "9101:9101" # JMX
-      - "29092:29092"
-      - "8082:8082"
-#    networks:
-#      - net
     restart: unless-stopped
     environment:
       KAFKA_NODE_ID: 1
@@ -50,14 +27,11 @@ services:
       KAFKA_PROCESS_ROLES: 'broker,controller'
       KAFKA_CONTROLLER_QUORUM_VOTERS: '1@kafka:29093'
       KAFKA_LISTENERS: 'PLAINTEXT://kafka:29092,CONTROLLER://kafka:29093,PLAINTEXT_HOST://0.0.0.0:9092'
-
       CLUSTER_ID: 'K0EA9p0yEe6MkAAAAkKsEg'
 
   kafka-init-topics:
     image: confluentinc/confluent-local:7.4.3
     container_name: kafka-init-topics
-#    networks:
-#      - net
     depends_on:
       - kafka
     command: "bash -c \
@@ -72,6 +46,5 @@ services:
                              --bootstrap-server kafka:29092'"
     init: true
 
-#networks:
-#  net:
-#    driver: bridge
+volumes:
+  postgres_data:
