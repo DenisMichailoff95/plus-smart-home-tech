@@ -37,27 +37,38 @@ public class ScenarioAdded implements HubEventHandler {
 
         log.info("Обработка добавления сценария: hub={}, name={}", hubId, scenarioName);
 
-        // Создаем или получаем сценарий
-        Scenario scenario = scenarioRepository.findByHubIdAndName(hubId, scenarioName)
-                .orElseGet(() -> {
-                    Scenario newScenario = buildToScenario(hubEvent);
-                    return scenarioRepository.save(newScenario);
+        // Удаляем существующий сценарий и все связанные данные
+        scenarioRepository.findByHubIdAndName(hubId, scenarioName)
+                .ifPresent(existingScenario -> {
+                    log.info("Удаление существующего сценария: {}", scenarioName);
+                    conditionRepository.deleteByScenario(existingScenario);
+                    actionRepository.deleteByScenario(existingScenario);
+                    scenarioRepository.delete(existingScenario);
                 });
 
+        // Создаем новый сценарий
+        Scenario scenario = buildToScenario(hubEvent);
+        Scenario savedScenario = scenarioRepository.save(scenario);
+        log.info("Создан сценарий: id={}, name={}", savedScenario.getId(), savedScenario.getName());
+
         // Сохраняем условия
-        Set<Condition> conditions = buildToCondition(scenarioAddedEvent, scenario);
-        conditionRepository.saveAll(conditions);
-        log.info("Сохранено {} условий для сценария '{}'", conditions.size(), scenarioName);
+        Set<Condition> conditions = buildToCondition(scenarioAddedEvent, savedScenario);
+        if (!conditions.isEmpty()) {
+            conditionRepository.saveAll(conditions);
+            log.info("Сохранено {} условий для сценария '{}'", conditions.size(), scenarioName);
+        }
 
         // Сохраняем действия
-        Set<Action> actions = buildToAction(scenarioAddedEvent, scenario);
-        actionRepository.saveAll(actions);
-        log.info("Сохранено {} действий для сценария '{}'", actions.size(), scenarioName);
+        Set<Action> actions = buildToAction(scenarioAddedEvent, savedScenario);
+        if (!actions.isEmpty()) {
+            actionRepository.saveAll(actions);
+            log.info("Сохранено {} действий для сценария '{}'", actions.size(), scenarioName);
+        }
     }
 
     @Override
     public String getMessageType() {
-        return ScenarioAddedEventAvro.class.getSimpleName();
+        return "ScenarioAddedEventAvro";
     }
 
     private Scenario buildToScenario(HubEventAvro hubEvent) {

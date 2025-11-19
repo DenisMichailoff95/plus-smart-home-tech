@@ -42,13 +42,17 @@ public class HubEventProcessor implements Runnable {
                 for (ConsumerRecord<String, HubEventAvro> record : records) {
                     HubEventAvro event = record.value();
                     String payloadName = event.getPayload().getClass().getSimpleName();
-                    log.info("Получение хаба {}", payloadName);
+                    log.info("Получение события хаба: тип={}, hubId={}", payloadName, event.getHubId());
+
                     if (mapBuilder.containsKey(payloadName)) {
-                        mapBuilder.get(payloadName).handle(event);
-                        log.info("Обработчик успешно выполнен для события {}", payloadName);
+                        try {
+                            mapBuilder.get(payloadName).handle(event);
+                            log.info("Обработчик успешно выполнен для события {}", payloadName);
+                        } catch (Exception e) {
+                            log.error("Ошибка в обработчике для события {}", payloadName, e);
+                        }
                     } else {
-                        log.error("Нет обработчика для события {}", event);
-                        throw new IllegalArgumentException("Нет обработчика для события " + event);
+                        log.error("Нет обработчика для события типа {}", payloadName);
                     }
                 }
                 consumer.commitSync();
@@ -56,7 +60,7 @@ public class HubEventProcessor implements Runnable {
         } catch (WakeupException ignored) {
             log.info("HubEventProcessor остановлен");
         } catch (Exception e) {
-            log.error("Ошибка получения данных {}", topic, e);
+            log.error("Ошибка получения данных из топика {}", topic, e);
         } finally {
             try {
                 consumer.commitSync();

@@ -67,30 +67,42 @@ public class SnapshotHandler {
         try {
             switch (condition.getType()) {
                 case LUMINOSITY -> {
-                    LightSensorAvro lightSensor = (LightSensorAvro) sensorState.getData();
-                    return handleOperation(condition, lightSensor.getLuminosity());
+                    if (sensorState.getData() instanceof LightSensorAvro) {
+                        LightSensorAvro lightSensor = (LightSensorAvro) sensorState.getData();
+                        return handleOperation(condition, lightSensor.getLuminosity());
+                    }
                 }
                 case TEMPERATURE -> {
-                    ClimateSensorAvro temperatureSensor = (ClimateSensorAvro) sensorState.getData();
-                    return handleOperation(condition, temperatureSensor.getTemperatureC());
+                    if (sensorState.getData() instanceof ClimateSensorAvro) {
+                        ClimateSensorAvro temperatureSensor = (ClimateSensorAvro) sensorState.getData();
+                        return handleOperation(condition, temperatureSensor.getTemperatureC());
+                    }
                 }
                 case MOTION -> {
-                    MotionSensorAvro motionSensor = (MotionSensorAvro) sensorState.getData();
-                    int motionValue = motionSensor.getMotion() ? 1 : 0;
-                    return handleOperation(condition, motionValue);
+                    if (sensorState.getData() instanceof MotionSensorAvro) {
+                        MotionSensorAvro motionSensor = (MotionSensorAvro) sensorState.getData();
+                        int motionValue = motionSensor.getMotion() ? 1 : 0;
+                        return handleOperation(condition, motionValue);
+                    }
                 }
                 case SWITCH -> {
-                    SwitchSensorAvro switchSensor = (SwitchSensorAvro) sensorState.getData();
-                    int switchValue = switchSensor.getState() ? 1 : 0;
-                    return handleOperation(condition, switchValue);
+                    if (sensorState.getData() instanceof SwitchSensorAvro) {
+                        SwitchSensorAvro switchSensor = (SwitchSensorAvro) sensorState.getData();
+                        int switchValue = switchSensor.getState() ? 1 : 0;
+                        return handleOperation(condition, switchValue);
+                    }
                 }
                 case CO2LEVEL -> {
-                    ClimateSensorAvro climateSensor = (ClimateSensorAvro) sensorState.getData();
-                    return handleOperation(condition, climateSensor.getCo2Level());
+                    if (sensorState.getData() instanceof ClimateSensorAvro) {
+                        ClimateSensorAvro climateSensor = (ClimateSensorAvro) sensorState.getData();
+                        return handleOperation(condition, climateSensor.getCo2Level());
+                    }
                 }
                 case HUMIDITY -> {
-                    ClimateSensorAvro climateSensor = (ClimateSensorAvro) sensorState.getData();
-                    return handleOperation(condition, climateSensor.getHumidity());
+                    if (sensorState.getData() instanceof ClimateSensorAvro) {
+                        ClimateSensorAvro climateSensor = (ClimateSensorAvro) sensorState.getData();
+                        return handleOperation(condition, climateSensor.getHumidity());
+                    }
                 }
                 default -> {
                     log.warn("Неизвестный тип условия: {}", condition.getType());
@@ -101,10 +113,15 @@ public class SnapshotHandler {
             log.error("Ошибка при проверке условия для датчика {}", sensorId, e);
             return false;
         }
+
+        log.warn("Несоответствие типа данных для условия: тип условия={}, тип данных={}",
+                condition.getType(), sensorState.getData().getClass().getSimpleName());
+        return false;
     }
 
     private boolean handleOperation(Condition condition, Integer currentValue) {
         if (currentValue == null) {
+            log.warn("Текущее значение равно null для условия {}", condition.getId());
             return false;
         }
 
@@ -112,20 +129,29 @@ public class SnapshotHandler {
         Integer targetValue = condition.getValue();
 
         if (targetValue == null) {
+            log.warn("Целевое значение равно null для условия {}", condition.getId());
             return false;
         }
 
+        boolean result;
         switch (conditionOperation) {
             case EQUALS:
-                return targetValue.equals(currentValue);
+                result = targetValue.equals(currentValue);
+                break;
             case LOWER_THAN:
-                return currentValue < targetValue;
+                result = currentValue < targetValue;
+                break;
             case GREATER_THAN:
-                return currentValue > targetValue;
+                result = currentValue > targetValue;
+                break;
             default:
                 log.warn("Неизвестная операция: {}", conditionOperation);
                 return false;
         }
+
+        log.debug("Проверка условия: текущее={}, целевое={}, операция={}, результат={}",
+                currentValue, targetValue, conditionOperation, result);
+        return result;
     }
 
     private void sendScenarioActions(Scenario scenario) {

@@ -17,10 +17,10 @@ import java.time.Instant;
 @Service
 public class HubRouterClient {
 
+    @GrpcClient("hub-router")
     private final HubRouterControllerGrpc.HubRouterControllerBlockingStub hubRouterClient;
 
-    public HubRouterClient(@GrpcClient("hub-router")
-                           HubRouterControllerGrpc.HubRouterControllerBlockingStub hubRouterClient) {
+    public HubRouterClient(HubRouterControllerGrpc.HubRouterControllerBlockingStub hubRouterClient) {
         this.hubRouterClient = hubRouterClient;
     }
 
@@ -43,14 +43,20 @@ public class HubRouterClient {
     }
 
     private DeviceActionRequest buildActionRequest(Action action) {
+        DeviceActionProto.Builder actionBuilder = DeviceActionProto.newBuilder()
+                .setSensorId(action.getSensor().getId())
+                .setType(actionTypeProto(action.getType()));
+
+        if (action.getValue() != null) {
+            actionBuilder.setValue(action.getValue());
+        } else {
+            actionBuilder.setValue(0); // значение по умолчанию
+        }
+
         return DeviceActionRequest.newBuilder()
                 .setHubId(action.getScenario().getHubId())
                 .setScenarioName(action.getScenario().getName())
-                .setAction(DeviceActionProto.newBuilder()
-                        .setSensorId(action.getSensor().getId())
-                        .setType(actionTypeProto(action.getType()))
-                        .setValue(action.getValue() != null ? action.getValue() : 0)
-                        .build())
+                .setAction(actionBuilder.build())
                 .setTimestamp(setTimestamp())
                 .build();
     }
@@ -61,6 +67,10 @@ public class HubRouterClient {
             case DEACTIVATE -> ActionTypeProto.DEACTIVATE;
             case INVERSE -> ActionTypeProto.INVERSE;
             case SET_VALUE -> ActionTypeProto.SET_VALUE;
+            default -> {
+                log.warn("Неизвестный тип действия: {}, используется ACTIVATE по умолчанию", actionType);
+                yield ActionTypeProto.ACTIVATE;
+            }
         };
     }
 
