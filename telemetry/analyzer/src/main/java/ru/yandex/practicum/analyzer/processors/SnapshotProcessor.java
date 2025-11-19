@@ -33,7 +33,9 @@ public class SnapshotProcessor implements Runnable {
 
             while (true) {
                 ConsumerRecords<String, SensorsSnapshotAvro> records = consumer.poll(Duration.ofMillis(1000));
-                log.info("Получено {} записей из топика {}", records.count(), topic);
+                if (!records.isEmpty()) {
+                    log.info("Получено {} записей из топика {}", records.count(), topic);
+                }
 
                 for (ConsumerRecord<String, SensorsSnapshotAvro> record : records) {
                     SensorsSnapshotAvro sensorsSnapshot = record.value();

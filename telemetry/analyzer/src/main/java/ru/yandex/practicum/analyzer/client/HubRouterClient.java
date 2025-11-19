@@ -22,7 +22,15 @@ public class HubRouterClient {
 
     public void sendAction(Action action) {
         try {
+            // Добавьте проверку на доступность канала
+            log.debug("Попытка отправки действия: сценарий={}, датчик={}, тип={}, значение={}",
+                    action.getScenario().getName(),
+                    action.getSensor().getId(),
+                    action.getType(),
+                    action.getValue());
+
             DeviceActionRequest deviceActionRequest = buildActionRequest(action);
+
             log.info("Отправка действия в Hub Router: hubId={}, scenario={}, sensorId={}, type={}, value={}",
                     deviceActionRequest.getHubId(),
                     deviceActionRequest.getScenarioName(),
@@ -33,7 +41,8 @@ public class HubRouterClient {
             hubRouterStub.handleDeviceAction(deviceActionRequest);
             log.info("Действие успешно отправлено в hub-router");
         } catch (Exception e) {
-            log.error("Ошибка при отправке действия в Hub Router", e);
+            log.error("Ошибка при отправке действия в Hub Router для сценария '{}'",
+                    action.getScenario().getName(), e);
             throw new RuntimeException("Failed to send action to Hub Router", e);
         }
     }

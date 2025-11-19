@@ -10,13 +10,13 @@ import java.util.concurrent.*;
 @SpringBootApplication
 public class AnalyzerApplication {
 
-    @Value("${threadPool.arrayBlockingQueue.capacity:2}")
+    @Value("${threadPool.arrayBlockingQueue.capacity:10}")
     private int arrayBlockingQueueCapacity;
 
     @Value("${threadPool.corePoolSize:2}")
     private int threadPoolCorePoolSize;
 
-    @Value("${threadPool.maximumPoolSize:2}")
+    @Value("${threadPool.maximumPoolSize:4}")
     private int threadPoolMaximumPoolSize;
 
     @Value("${threadPool.keepAliveTime:60}")
@@ -35,7 +35,7 @@ public class AnalyzerApplication {
                 threadPoolKeepAliveTime,
                 TimeUnit.SECONDS,
                 queue,
-                new ThreadPoolExecutor.AbortPolicy()
+                new ThreadPoolExecutor.CallerRunsPolicy() // Используем CallerRunsPolicy вместо AbortPolicy
         );
         threadPoolExecutor.allowCoreThreadTimeOut(true);
         return threadPoolExecutor;

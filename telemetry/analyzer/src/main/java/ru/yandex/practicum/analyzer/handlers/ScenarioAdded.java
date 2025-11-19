@@ -56,6 +56,8 @@ public class ScenarioAdded implements HubEventHandler {
         if (!conditions.isEmpty()) {
             conditionRepository.saveAll(conditions);
             log.info("Сохранено {} условий для сценария '{}'", conditions.size(), scenarioName);
+        } else {
+            log.warn("Сценарий '{}' не имеет условий", scenarioName);
         }
 
         // Сохраняем действия
@@ -63,6 +65,8 @@ public class ScenarioAdded implements HubEventHandler {
         if (!actions.isEmpty()) {
             actionRepository.saveAll(actions);
             log.info("Сохранено {} действий для сценария '{}'", actions.size(), scenarioName);
+        } else {
+            log.warn("Сценарий '{}' не имеет действий", scenarioName);
         }
     }
 
@@ -124,7 +128,8 @@ public class ScenarioAdded implements HubEventHandler {
         } else if (value instanceof Boolean) {
             return (Boolean) value ? 1 : 0;
         } else {
-            throw new IllegalArgumentException("Неподдерживаемый тип значения: " + value.getClass());
+            log.warn("Неподдерживаемый тип значения: {}, будет использовано значение по умолчанию 0", value.getClass());
+            return 0;
         }
     }
 }

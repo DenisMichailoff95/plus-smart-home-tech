@@ -28,14 +28,17 @@ public class SnapshotHandler {
         Map<String, SensorStateAvro> sensorStateMap = sensorsSnapshot.getSensorsState();
         List<Scenario> scenarios = scenarioRepository.findByHubId(sensorsSnapshot.getHubId());
 
-        log.info("Обработка снапшота для хаба {}. Найдено сценариев: {}",
-                sensorsSnapshot.getHubId(), scenarios.size());
+        log.info("Обработка снапшота для хаба {}. Найдено сценариев: {}, Датчиков в снапшоте: {}",
+                sensorsSnapshot.getHubId(), scenarios.size(), sensorStateMap.size());
 
         for (Scenario scenario : scenarios) {
+            log.debug("Проверка сценария: '{}' для хаба {}", scenario.getName(), scenario.getHubId());
             boolean shouldExecute = handleScenario(scenario, sensorStateMap);
             if (shouldExecute) {
                 log.info("Сценарий '{}' выполняется, отправка действий", scenario.getName());
                 sendScenarioActions(scenario);
+            } else {
+                log.debug("Сценарий '{}' не выполняется - условия не выполнены", scenario.getName());
             }
         }
     }
@@ -73,23 +76,26 @@ public class SnapshotHandler {
                     }
                 }
                 case TEMPERATURE -> {
+                    // Проверяем оба типа сенсоров для температуры
                     if (sensorState.getData() instanceof ClimateSensorAvro) {
-                        ClimateSensorAvro temperatureSensor = (ClimateSensorAvro) sensorState.getData();
-                        return handleOperation(condition, temperatureSensor.getTemperatureC());
+                        ClimateSensorAvro climateSensor = (ClimateSensorAvro) sensorState.getData();
+                        return handleOperation(condition, climateSensor.getTemperatureC());
+                    } else if (sensorState.getData() instanceof TemperatureSensorAvro) {
+                        TemperatureSensorAvro tempSensor = (TemperatureSensorAvro) sensorState.getData();
+                        return handleOperation(condition, tempSensor.getTemperatureC());
                     }
                 }
                 case MOTION -> {
                     if (sensorState.getData() instanceof MotionSensorAvro) {
                         MotionSensorAvro motionSensor = (MotionSensorAvro) sensorState.getData();
-                        int motionValue = motionSensor.getMotion() ? 1 : 0;
-                        return handleOperation(condition, motionValue);
+                        // Для boolean условий используем специальную обработку
+                        return handleBooleanOperation(condition, motionSensor.getMotion());
                     }
                 }
                 case SWITCH -> {
                     if (sensorState.getData() instanceof SwitchSensorAvro) {
                         SwitchSensorAvro switchSensor = (SwitchSensorAvro) sensorState.getData();
-                        int switchValue = switchSensor.getState() ? 1 : 0;
-                        return handleOperation(condition, switchValue);
+                        return handleBooleanOperation(condition, switchSensor.getState());
                     }
                 }
                 case CO2LEVEL -> {
@@ -117,6 +123,24 @@ public class SnapshotHandler {
         log.warn("Несоответствие типа данных для условия: тип условия={}, тип данных={}",
                 condition.getType(), sensorState.getData().getClass().getSimpleName());
         return false;
+    }
+
+    private boolean handleBooleanOperation(Condition condition, Boolean currentValue) {
+        if (currentValue == null) {
+            log.warn("Текущее boolean значение равно null для условия {}", condition.getId());
+            return false;
+        }
+
+        Integer targetValue = condition.getValue();
+        if (targetValue == null) {
+            log.warn("Целевое значение равно null для условия {}", condition.getId());
+            return false;
+        }
+
+        // Конвертируем boolean в int (true=1, false=0)
+        int currentIntValue = currentValue ? 1 : 0;
+
+        return handleOperation(condition, currentIntValue);
     }
 
     private boolean handleOperation(Condition condition, Integer currentValue) {

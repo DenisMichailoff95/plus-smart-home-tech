@@ -42,7 +42,8 @@ public class HubEventProcessor implements Runnable {
                 for (ConsumerRecord<String, HubEventAvro> record : records) {
                     HubEventAvro event = record.value();
                     String payloadName = event.getPayload().getClass().getSimpleName();
-                    log.info("Получение события хаба: тип={}, hubId={}", payloadName, event.getHubId());
+                    log.info("Получение события хаба: тип={}, hubId={}, timestamp={}",
+                            payloadName, event.getHubId(), event.getTimestamp());
 
                     if (mapBuilder.containsKey(payloadName)) {
                         try {
