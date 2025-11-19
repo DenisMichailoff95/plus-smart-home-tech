@@ -18,11 +18,7 @@ import java.time.Instant;
 public class HubRouterClient {
 
     @GrpcClient("hub-router")
-    private final HubRouterControllerGrpc.HubRouterControllerBlockingStub hubRouterClient;
-
-    public HubRouterClient(HubRouterControllerGrpc.HubRouterControllerBlockingStub hubRouterClient) {
-        this.hubRouterClient = hubRouterClient;
-    }
+    private HubRouterControllerGrpc.HubRouterControllerBlockingStub hubRouterStub;
 
     public void sendAction(Action action) {
         try {
@@ -34,7 +30,7 @@ public class HubRouterClient {
                     deviceActionRequest.getAction().getType(),
                     deviceActionRequest.getAction().getValue());
 
-            hubRouterClient.handleDeviceAction(deviceActionRequest);
+            hubRouterStub.handleDeviceAction(deviceActionRequest);
             log.info("Действие успешно отправлено в hub-router");
         } catch (Exception e) {
             log.error("Ошибка при отправке действия в Hub Router", e);
@@ -50,7 +46,7 @@ public class HubRouterClient {
         if (action.getValue() != null) {
             actionBuilder.setValue(action.getValue());
         } else {
-            actionBuilder.setValue(0); // значение по умолчанию
+            actionBuilder.setValue(0);
         }
 
         return DeviceActionRequest.newBuilder()
@@ -67,10 +63,7 @@ public class HubRouterClient {
             case DEACTIVATE -> ActionTypeProto.DEACTIVATE;
             case INVERSE -> ActionTypeProto.INVERSE;
             case SET_VALUE -> ActionTypeProto.SET_VALUE;
-            default -> {
-                log.warn("Неизвестный тип действия: {}, используется ACTIVATE по умолчанию", actionType);
-                yield ActionTypeProto.ACTIVATE;
-            }
+            default -> ActionTypeProto.ACTIVATE;
         };
     }
 

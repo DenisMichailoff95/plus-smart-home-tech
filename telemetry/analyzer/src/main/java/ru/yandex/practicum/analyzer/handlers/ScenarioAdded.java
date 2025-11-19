@@ -68,7 +68,7 @@ public class ScenarioAdded implements HubEventHandler {
 
     @Override
     public String getMessageType() {
-        return "ScenarioAddedEventAvro";
+        return ScenarioAddedEventAvro.class.getSimpleName();
     }
 
     private Scenario buildToScenario(HubEventAvro hubEvent) {
