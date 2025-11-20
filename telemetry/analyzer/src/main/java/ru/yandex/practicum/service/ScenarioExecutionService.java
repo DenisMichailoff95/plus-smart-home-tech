@@ -38,12 +38,12 @@ public class ScenarioExecutionService {
 
     public void executeScenarios(SensorsSnapshotAvro snapshot, List<Scenario> scenarios) {
         String hubId = snapshot.getHubId();
-        log.info("=== ANALYZING SNAPSHOT FOR HUB: {} ===", hubId);
+        log.info("=== STARTING SCENARIO EXECUTION FOR HUB: {} ===", hubId);
         log.info("Found {} scenarios to check", scenarios.size());
 
         for (Scenario scenario : scenarios) {
             try {
-                log.info("Checking scenario: {} for hub: {}", scenario.getName(), hubId);
+                log.info("Checking scenario: '{}' for hub: {}", scenario.getName(), hubId);
 
                 List<ScenarioCondition> conditions = scenarioConditionRepository
                         .findWithAssociationsByIdScenarioId(scenario.getId());
@@ -54,24 +54,36 @@ public class ScenarioExecutionService {
                     continue;
                 }
 
+                // Логируем условия
+                for (ScenarioCondition condition : conditions) {
+                    log.info("Condition: sensor={}, type={}, operation={}, value={}",
+                            condition.getSensor().getId(),
+                            condition.getType(),
+                            condition.getOperation(),
+                            condition.getValue());
+                }
+
                 boolean conditionsMet = conditionEvaluationService.evaluateAllConditions(snapshot, conditions);
-                log.info("Conditions met for scenario {}: {}", scenario.getName(), conditionsMet);
+                log.info("Conditions met for scenario '{}': {}", scenario.getName(), conditionsMet);
 
                 if (conditionsMet) {
-                    log.info("EXECUTING SCENARIO: {} for hub: {}", scenario.getName(), hubId);
+                    log.info("EXECUTING SCENARIO: '{}' for hub: {}", scenario.getName(), hubId);
                     executeScenarioActions(hubId, scenario);
+                } else {
+                    log.info("Conditions NOT met for scenario: '{}'", scenario.getName());
                 }
             } catch (Exception e) {
                 log.error("Error executing scenario: {} for hub: {}", scenario.getName(), hubId, e);
             }
         }
+        log.info("=== COMPLETED SCENARIO EXECUTION FOR HUB: {} ===", hubId);
     }
 
     private void executeScenarioActions(String hubId, Scenario scenario) {
         try {
             List<ScenarioAction> scenarioActions = scenarioActionRepository
                     .findWithAssociationsByIdScenarioId(scenario.getId());
-            log.info("Executing {} actions for scenario: {} on hub: {}",
+            log.info("Executing {} actions for scenario: '{}' on hub: {}",
                     scenarioActions.size(), scenario.getName(), hubId);
 
             if (scenarioActions.isEmpty()) {
@@ -82,6 +94,8 @@ public class ScenarioExecutionService {
             for (ScenarioAction scenarioAction : scenarioActions) {
                 executeSingleAction(hubId, scenario.getName(), scenarioAction);
             }
+
+            log.info("Successfully executed all actions for scenario: '{}'", scenario.getName());
 
         } catch (Exception e) {
             log.error("Failed to execute scenario actions: {}", scenario.getName(), e);
@@ -98,8 +112,8 @@ public class ScenarioExecutionService {
                 return;
             }
 
-            log.info("Sending action to Hub Router - Hub: {}, Scenario: {}, Sensor: {}, Action: {}",
-                    hubId, scenarioName, sensor.getId(), action.getType());
+            log.info("Sending action to Hub Router - Hub: {}, Scenario: {}, Sensor: {}, Action: {}, Value: {}",
+                    hubId, scenarioName, sensor.getId(), action.getType(), action.getValue());
 
             DeviceActionProto actionProto = DeviceActionProto.newBuilder()
                     .setSensorId(sensor.getId())
@@ -117,12 +131,13 @@ public class ScenarioExecutionService {
                             .build())
                     .build();
 
+            log.info("Making gRPC call to Hub Router...");
             hubRouterClient.handleDeviceAction(request);
-            log.info("SUCCESS: Sent device action for scenario: {}, sensor: {}, action: {}",
+            log.info("SUCCESS: Sent device action for scenario: '{}', sensor: {}, action: {}",
                     scenarioName, sensor.getId(), action.getType());
 
         } catch (Exception e) {
-            log.error("FAILED to send device action for scenario: {}, sensor: {}",
+            log.error("FAILED to send device action for scenario: '{}', sensor: {}",
                     scenarioName, scenarioAction.getSensor().getId(), e);
         }
     }

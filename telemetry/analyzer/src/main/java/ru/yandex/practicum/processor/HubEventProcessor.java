@@ -64,8 +64,10 @@ public class HubEventProcessor implements Runnable {
     private void processHubEvents(ConsumerRecords<String, byte[]> records) {
         for (ConsumerRecord<String, byte[]> record : records) {
             try {
+                log.info("Received hub event from topic: {}, partition: {}, offset: {}",
+                        record.topic(), record.partition(), record.offset());
                 hubEventService.processHubEvent(record.value());
-                log.debug("Processed hub event from topic: {}", record.topic());
+                log.info("Successfully processed hub event");
             } catch (Exception e) {
                 log.error("Error processing hub event", e);
             }
