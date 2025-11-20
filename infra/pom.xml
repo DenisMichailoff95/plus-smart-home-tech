@@ -11,5 +11,9 @@
 
     <artifactId>infra</artifactId>
     <packaging>pom</packaging>
+    <modules>
+        <module>grpc-client</module>
+        <module>grpc-server</module>
+    </modules>
 
 </project>

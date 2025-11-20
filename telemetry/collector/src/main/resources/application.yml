@@ -1,21 +1,24 @@
 spring:
+  application:
+    name: collector
+
   kafka:
     bootstrap-servers: localhost:9092
+    properties:
+      security.protocol: PLAINTEXT
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
-      value-serializer: ru.yandex.practicum.collector.kafka.CollectorSerializer
-
+      value-serializer: org.apache.kafka.common.serialization.ByteArraySerializer
 
 grpc:
   server:
     port: 59091
 
-server:
-  port: 8080
 
 logging:
   level:
-    ru.yandex.practicum.collector: DEBUG
-    org.springframework.grpc: DEBUG
-    org.apache.kafka: DEBUG
+    ru.yandex.practicum: INFO
+    org.apache.kafka: WARN
     org.springframework.kafka: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
