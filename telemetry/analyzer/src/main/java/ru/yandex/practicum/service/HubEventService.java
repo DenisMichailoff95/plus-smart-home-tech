@@ -16,12 +16,11 @@ import ru.yandex.practicum.entity.ScenarioActionId;
 import ru.yandex.practicum.entity.ScenarioConditionId;
 import ru.yandex.practicum.entity.Sensor;
 
-import ru.yandex.practicum.kafka.telemetry.event.DeviceActionAvro;
+import ru.yandex.practicum.kafka.telemetry.event.DeviceAction;
 import ru.yandex.practicum.kafka.telemetry.event.DeviceAddedEventAvro;
 import ru.yandex.practicum.kafka.telemetry.event.DeviceRemovedEventAvro;
 import ru.yandex.practicum.kafka.telemetry.event.HubEventAvro;
 import ru.yandex.practicum.kafka.telemetry.event.ScenarioAddedEventAvro;
-import ru.yandex.practicum.kafka.telemetry.event.ScenarioConditionAvro;
 import ru.yandex.practicum.kafka.telemetry.event.ScenarioRemovedEventAvro;
 import ru.yandex.practicum.repository.ActionRepository;
 import ru.yandex.practicum.repository.ConditionRepository;
@@ -87,7 +86,7 @@ public class HubEventService {
             sensorRepository.save(sensor);
 
             log.info("Successfully added sensor: {} for hub: {}, type: {}",
-                    event.getId(), hubId, event.getType());
+                    event.getId(), hubId, event.getDeviceType());
         } catch (Exception e) {
             log.error("Failed to add sensor: {} for hub: {}", event.getId(), hubId, e);
         }
@@ -116,8 +115,8 @@ public class HubEventService {
             Scenario scenario;
             if (existingScenario.isPresent()) {
                 scenario = existingScenario.get();
-                scenarioConditionRepository.deleteByIdScenarioId(scenario.getId());
-                scenarioActionRepository.deleteByIdScenarioId(scenario.getId());
+                scenarioConditionRepository.deleteByScenarioId(scenario.getId());
+                scenarioActionRepository.deleteByScenarioId(scenario.getId());
                 scenarioRepository.flush();
             } else {
                 scenario = new Scenario();
@@ -129,7 +128,7 @@ public class HubEventService {
             log.info("Processing scenario: {} for hub: {} with {} conditions and {} actions",
                     event.getName(), hubId, event.getConditions().size(), event.getActions().size());
 
-            for (ScenarioConditionAvro condition : event.getConditions()) {
+            for (ru.yandex.practicum.kafka.telemetry.event.ScenarioCondition condition : event.getConditions()) {
                 try {
                     saveScenarioCondition(scenario, condition);
                 } catch (Exception e) {
@@ -138,7 +137,7 @@ public class HubEventService {
                 }
             }
 
-            for (DeviceActionAvro action : event.getActions()) {
+            for (DeviceAction action : event.getActions()) {
                 try {
                     saveScenarioAction(scenario, action);
                 } catch (Exception e) {
@@ -159,7 +158,7 @@ public class HubEventService {
         }
     }
 
-    private void saveScenarioCondition(Scenario scenario, ScenarioConditionAvro condition) {
+    private void saveScenarioCondition(Scenario scenario, ru.yandex.practicum.kafka.telemetry.event.ScenarioCondition condition) {
         try {
             String sensorId = condition.getSensorId();
             Sensor sensor = sensorRepository.findById(sensorId)
@@ -197,7 +196,7 @@ public class HubEventService {
         }
     }
 
-    private void saveScenarioAction(Scenario scenario, DeviceActionAvro action) {
+    private void saveScenarioAction(Scenario scenario, ru.yandex.practicum.kafka.telemetry.event.DeviceAction action) {
         try {
             String sensorId = action.getSensorId();
             Sensor sensor = sensorRepository.findById(sensorId)
@@ -232,7 +231,7 @@ public class HubEventService {
         }
     }
 
-    private Integer extractConditionValue(ScenarioConditionAvro condition) {
+    private Integer extractConditionValue(ru.yandex.practicum.kafka.telemetry.event.ScenarioCondition condition) {
         Object value = condition.getValue();
 
         if (value == null) {
@@ -255,8 +254,8 @@ public class HubEventService {
         try {
             scenarioRepository.findByHubIdAndName(hubId, event.getName())
                     .ifPresent(scenario -> {
-                        scenarioConditionRepository.deleteByIdScenarioId(scenario.getId());
-                        scenarioActionRepository.deleteByIdScenarioId(scenario.getId());
+                        scenarioConditionRepository.deleteByScenarioId(scenario.getId());
+                        scenarioActionRepository.deleteByScenarioId(scenario.getId());
                         scenarioRepository.delete(scenario);
                         log.info("Successfully removed scenario: {} from hub: {}", event.getName(), hubId);
                     });

@@ -11,15 +11,15 @@ import java.util.List;
 
 public interface ScenarioActionRepository extends JpaRepository<ScenarioAction, ScenarioActionId> {
 
-    List<ScenarioAction> findByIdScenarioId(Long scenarioId);
+    List<ScenarioAction> findByScenarioId(Long scenarioId);
 
     @Query("SELECT sa FROM ScenarioAction sa " +
             "JOIN FETCH sa.sensor " +
             "JOIN FETCH sa.action " +
             "WHERE sa.id.scenarioId = :scenarioId")
-    List<ScenarioAction> findWithAssociationsByIdScenarioId(@Param("scenarioId") Long scenarioId);
+    List<ScenarioAction> findWithAssociationsByScenarioId(@Param("scenarioId") Long scenarioId);
 
     @Modifying
     @Query("DELETE FROM ScenarioAction sa WHERE sa.id.scenarioId = :scenarioId")
-    void deleteByIdScenarioId(@Param("scenarioId") Long scenarioId);
+    void deleteByScenarioId(@Param("scenarioId") Long scenarioId);
 }

@@ -70,11 +70,9 @@ public class SnapshotProcessor {
     private void processSnapshots(ConsumerRecords<String, byte[]> records) {
         for (ConsumerRecord<String, byte[]> record : records) {
             try {
-                log.info("Received snapshot from topic: {}, key: {}", record.topic(), record.key());
                 SensorsSnapshotAvro snapshot = deserializeSnapshot(record.value());
-                log.info("Starting analysis for hub: {}", snapshot.getHubId());
                 snapshotAnalysisService.analyzeSnapshot(snapshot);
-                log.info("Successfully processed snapshot for hub: {}", record.key());
+                log.debug("Processed snapshot for hub: {}", record.key());
             } catch (Exception e) {
                 log.error("Error processing snapshot", e);
             }

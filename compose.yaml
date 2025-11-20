@@ -3,9 +3,9 @@ services:
     image: postgres:13
     container_name: postgres
     environment:
-      POSTGRES_DB: scenario-db
-      POSTGRES_USER: username
-      POSTGRES_PASSWORD: password
+      POSTGRES_DB: analyzer
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
     ports:
       - "5432:5432"
     volumes:
