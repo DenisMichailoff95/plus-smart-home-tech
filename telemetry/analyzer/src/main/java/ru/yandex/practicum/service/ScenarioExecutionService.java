@@ -38,28 +38,25 @@ public class ScenarioExecutionService {
 
     public void executeScenarios(SensorsSnapshotAvro snapshot, List<Scenario> scenarios) {
         String hubId = snapshot.getHubId();
-        log.info("=== ANALYZING SNAPSHOT FOR HUB: {} ===", hubId);
-        log.info("Found {} scenarios to check", scenarios.size());
+        log.debug("Analyzing snapshot for hub: {}, scenarios: {}", hubId, scenarios.size());
 
         for (Scenario scenario : scenarios) {
             try {
-                log.info("Checking scenario: {} for hub: {}", scenario.getName(), hubId);
+                log.debug("Checking scenario: {} for hub: {}", scenario.getName(), hubId);
 
-                // ИСПРАВЛЕННЫЙ ВЫЗОВ - убрано "Id" из названия метода
                 List<ScenarioCondition> conditions = scenarioConditionRepository
                         .findWithAssociationsByScenarioId(scenario.getId());
-                log.info("Loaded {} conditions for scenario: {}", conditions.size(), scenario.getName());
 
                 if (conditions.isEmpty()) {
-                    log.warn("No conditions found for scenario: {}", scenario.getName());
+                    log.debug("No conditions found for scenario: {}", scenario.getName());
                     continue;
                 }
 
                 boolean conditionsMet = conditionEvaluationService.evaluateAllConditions(snapshot, conditions);
-                log.info("Conditions met for scenario {}: {}", scenario.getName(), conditionsMet);
+                log.debug("Conditions met for scenario {}: {}", scenario.getName(), conditionsMet);
 
                 if (conditionsMet) {
-                    log.info("EXECUTING SCENARIO: {} for hub: {}", scenario.getName(), hubId);
+                    log.info("Executing scenario: {} for hub: {}", scenario.getName(), hubId);
                     executeScenarioActions(hubId, scenario);
                 }
             } catch (Exception e) {
@@ -70,16 +67,16 @@ public class ScenarioExecutionService {
 
     private void executeScenarioActions(String hubId, Scenario scenario) {
         try {
-            // ИСПРАВЛЕННЫЙ ВЫЗОВ - убрано "Id" из названия метода
             List<ScenarioAction> scenarioActions = scenarioActionRepository
                     .findWithAssociationsByScenarioId(scenario.getId());
-            log.info("Executing {} actions for scenario: {} on hub: {}",
-                    scenarioActions.size(), scenario.getName(), hubId);
 
             if (scenarioActions.isEmpty()) {
                 log.warn("No actions found for scenario: {}", scenario.getName());
                 return;
             }
+
+            log.debug("Executing {} actions for scenario: {} on hub: {}",
+                    scenarioActions.size(), scenario.getName(), hubId);
 
             for (ScenarioAction scenarioAction : scenarioActions) {
                 executeSingleAction(hubId, scenario.getName(), scenarioAction);
@@ -100,33 +97,41 @@ public class ScenarioExecutionService {
                 return;
             }
 
-            log.info("Sending action to Hub Router - Hub: {}, Scenario: {}, Sensor: {}, Action: {}",
+            log.debug("Sending action to Hub Router - Hub: {}, Scenario: {}, Sensor: {}, Action: {}",
                     hubId, scenarioName, sensor.getId(), action.getType());
 
-            DeviceActionProto actionProto = DeviceActionProto.newBuilder()
-                    .setSensorId(sensor.getId())
-                    .setType(mapActionType(action.getType()))
-                    .setValue(action.getValue() != null ? action.getValue() : 0)
-                    .build();
-
-            DeviceActionRequest request = DeviceActionRequest.newBuilder()
-                    .setHubId(hubId)
-                    .setScenarioName(scenarioName)
-                    .setAction(actionProto)
-                    .setTimestamp(com.google.protobuf.Timestamp.newBuilder()
-                            .setSeconds(Instant.now().getEpochSecond())
-                            .setNanos(Instant.now().getNano())
-                            .build())
-                    .build();
+            DeviceActionProto actionProto = buildDeviceActionProto(sensor, action);
+            DeviceActionRequest request = buildDeviceActionRequest(hubId, scenarioName, actionProto);
 
             hubRouterClient.handleDeviceAction(request);
-            log.info("SUCCESS: Sent device action for scenario: {}, sensor: {}, action: {}",
-                    scenarioName, sensor.getId(), action.getType());
+            log.debug("Successfully sent device action for scenario: {}, sensor: {}",
+                    scenarioName, sensor.getId());
 
         } catch (Exception e) {
-            log.error("FAILED to send device action for scenario: {}, sensor: {}",
+            log.error("Failed to send device action for scenario: {}, sensor: {}",
                     scenarioName, scenarioAction.getSensor().getId(), e);
         }
+    }
+
+    private DeviceActionProto buildDeviceActionProto(Sensor sensor, Action action) {
+        return DeviceActionProto.newBuilder()
+                .setSensorId(sensor.getId())
+                .setType(mapActionType(action.getType()))
+                .setValue(action.getValue() != null ? action.getValue() : 0)
+                .build();
+    }
+
+    private DeviceActionRequest buildDeviceActionRequest(String hubId, String scenarioName, DeviceActionProto actionProto) {
+        Instant now = Instant.now();
+        return DeviceActionRequest.newBuilder()
+                .setHubId(hubId)
+                .setScenarioName(scenarioName)
+                .setAction(actionProto)
+                .setTimestamp(com.google.protobuf.Timestamp.newBuilder()
+                        .setSeconds(now.getEpochSecond())
+                        .setNanos(now.getNano())
+                        .build())
+                .build();
     }
 
     private ActionTypeProto mapActionType(String actionType) {

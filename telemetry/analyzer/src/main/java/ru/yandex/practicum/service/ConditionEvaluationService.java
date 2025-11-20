@@ -29,7 +29,7 @@ public class ConditionEvaluationService {
         String operation = scenarioCondition.getOperation();
         Integer conditionValue = scenarioCondition.getValue();
 
-        log.debug("Evaluating condition: sensor={}, type={}, operation={}, value={}",
+        log.trace("Evaluating condition: sensor={}, type={}, operation={}, value={}",
                 sensorId, conditionType, operation, conditionValue);
 
         return evaluateSensorData(sensorData, conditionType, operation, conditionValue);
@@ -50,7 +50,9 @@ public class ConditionEvaluationService {
                 return false;
             }
 
-            return performOperation(sensorValue, operation, conditionValue);
+            boolean result = performOperation(sensorValue, operation, conditionValue);
+            log.trace("Condition evaluation: {} {} {} = {}", sensorValue, operation, conditionValue, result);
+            return result;
 
         } catch (Exception e) {
             log.error("Error evaluating sensor data for condition type: {}", conditionType, e);

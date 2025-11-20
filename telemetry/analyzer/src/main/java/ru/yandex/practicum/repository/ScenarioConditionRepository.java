@@ -22,4 +22,11 @@ public interface ScenarioConditionRepository extends JpaRepository<ScenarioCondi
     @Modifying
     @Query("DELETE FROM ScenarioCondition sc WHERE sc.id.scenarioId = :scenarioId")
     void deleteByScenarioId(@Param("scenarioId") Long scenarioId);
+
+    default List<ScenarioCondition> findWithAssociationsByScenarioIdSafe(Long scenarioId) {
+        if (scenarioId == null) {
+            return List.of();
+        }
+        return findWithAssociationsByScenarioId(scenarioId);
+    }
 }
