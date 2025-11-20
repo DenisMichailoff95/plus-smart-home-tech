@@ -30,6 +30,8 @@ public class KafkaConsumerProperties {
                 environment.getProperty("spring.kafka.consumer.value-deserializer"));
         properties.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG,
                 environment.getProperty("spring.kafka.consumer.enable-auto-commit"));
+        properties.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG,
+                environment.getProperty("spring.kafka.consumer.auto-offset-reset", "earliest"));
 
         return new KafkaConsumer<>(properties);
     }
@@ -41,11 +43,15 @@ public class KafkaConsumerProperties {
         properties.put(ConsumerConfig.GROUP_ID_CONFIG, environment.getProperty("spring.kafka.consumer.snapshots-group-id"));
         properties.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, environment.getProperty("spring.kafka.bootstrap-servers"));
         properties.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG,
-                environment.getProperty("spring.kafka.consumer.key-deserializer"));
+                environment.getProperty("spring.kafka.consumer.snapshots-key-deserializer",
+                        environment.getProperty("spring.kafka.consumer.key-deserializer")));
         properties.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG,
-                environment.getProperty("spring.kafka.consumer.snapshots-deserializer"));
+                environment.getProperty("spring.kafka.consumer.snapshots-value-deserializer",
+                        "ru.yandex.practicum.deserializer.SnapshotDeserializer"));
         properties.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG,
                 environment.getProperty("spring.kafka.consumer.enable-auto-commit"));
+        properties.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG,
+                environment.getProperty("spring.kafka.consumer.auto-offset-reset", "earliest"));
 
         return new KafkaConsumer<>(properties);
     }
