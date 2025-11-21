@@ -30,7 +30,8 @@ import java.util.List;
 public class ScenarioExecutionService {
 
     @GrpcClient("hub-router")
-    private final HubRouterControllerGrpc.HubRouterControllerBlockingStub hubRouterClient;
+    private HubRouterControllerGrpc.HubRouterControllerBlockingStub hubRouterClient;
+
     private final ScenarioRepository scenarioRepository;
     private final ScenarioConditionRepository scenarioConditionRepository;
     private final ScenarioActionRepository scenarioActionRepository;
