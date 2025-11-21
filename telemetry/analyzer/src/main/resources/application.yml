@@ -1,4 +1,6 @@
 spring:
+  application:
+    name: analyzer
   datasource:
     url: jdbc:postgresql://localhost:5432/analyzer
     username: postgres
@@ -7,11 +9,26 @@ spring:
   jpa:
     hibernate:
       ddl-auto: update
+    show-sql: true
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.PostgreSQLDialect
-        show_sql: true
         format_sql: true
+  sql:
+    init:
+      mode: never
+
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      group-id: analyzer-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+      properties:
+        spring.deserializer.value.delegate.class: org.apache.kafka.common.serialization.ByteArrayDeserializer
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.ByteArraySerializer
 
 grpc:
   client:
@@ -20,3 +37,8 @@ grpc:
       enableKeepAlive: true
       keepAliveWithoutCalls: true
       negotiationType: plaintext
+
+logging:
+  level:
+    ru.yandex.practicum: DEBUG
+    org.apache.kafka: WARN
