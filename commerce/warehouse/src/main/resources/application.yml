@@ -1,6 +1,6 @@
 spring:
   application:
-    name: warehouse  # для каждого сервиса свое имя
+    name: warehouse
   config:
     import: "configserver:"
   cloud:
@@ -12,3 +12,13 @@ spring:
       retry:
         useRandomPolicy: true
         max-interval: 6000
+
+logging:
+  level:
+    ru.yandex.practicum: INFO
+    ru.yandex.practicum.service.WarehouseService: DEBUG
+    ru.yandex.practicum.controller: INFO
+    org.springframework.jdbc: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
