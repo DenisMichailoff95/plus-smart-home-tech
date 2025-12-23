@@ -25,16 +25,12 @@ public class SnapshotAnalysisService {
 
     public void analyzeSnapshot(SensorsSnapshotAvro snapshot) {
         String hubId = snapshot.getHubId();
-        log.debug("Starting snapshot analysis for hub: {}", hubId);
+        log.info("=== STARTING SNAPSHOT ANALYSIS ===");
 
         List<Scenario> scenarios = scenarioRepository.findByHubId(hubId);
-        log.debug("Found {} scenarios for hub: {}", scenarios.size(), hubId);
+        log.info("Found {} scenarios for hub: {}", scenarios.size(), hubId);
 
-        if (!scenarios.isEmpty()) {
-            scenarioExecutionService.executeScenarios(snapshot, scenarios);
-        } else {
-            log.debug("No scenarios found for hub: {}", hubId);
-        }
+        scenarioExecutionService.executeScenarios(snapshot, scenarios);
     }
 
     private SensorsSnapshotAvro deserializeSnapshot(byte[] data) throws IOException {

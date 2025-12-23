@@ -1,7 +1,15 @@
-grpc:
+spring:
+  application:
+    name: grpc-client
+  config:
+    import: "configserver:"
+  cloud:
+    config:
+      discovery:
+        enabled: true
+        serviceId: config-server
+
+eureka:
   client:
-    echo:
-      address: 'static://127.0.0.1:9090'
-      enableKeepAlive: true
-      keepAliveWithoutCalls: true
-      negotiationType: plaintext
+    serviceUrl:
+      defaultZone: http://${eureka.instance.hostname:localhost}:${eureka.instance.port:8761}/eureka/

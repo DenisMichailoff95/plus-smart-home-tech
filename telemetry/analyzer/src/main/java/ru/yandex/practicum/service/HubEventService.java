@@ -115,8 +115,8 @@ public class HubEventService {
             Scenario scenario;
             if (existingScenario.isPresent()) {
                 scenario = existingScenario.get();
-                scenarioConditionRepository.deleteByScenarioId(scenario.getId());
-                scenarioActionRepository.deleteByScenarioId(scenario.getId());
+                scenarioConditionRepository.deleteByIdScenarioId(scenario.getId());
+                scenarioActionRepository.deleteByIdScenarioId(scenario.getId());
                 scenarioRepository.flush();
             } else {
                 scenario = new Scenario();
@@ -254,8 +254,8 @@ public class HubEventService {
         try {
             scenarioRepository.findByHubIdAndName(hubId, event.getName())
                     .ifPresent(scenario -> {
-                        scenarioConditionRepository.deleteByScenarioId(scenario.getId());
-                        scenarioActionRepository.deleteByScenarioId(scenario.getId());
+                        scenarioConditionRepository.deleteByIdScenarioId(scenario.getId());
+                        scenarioActionRepository.deleteByIdScenarioId(scenario.getId());
                         scenarioRepository.delete(scenario);
                         log.info("Successfully removed scenario: {} from hub: {}", event.getName(), hubId);
                     });
