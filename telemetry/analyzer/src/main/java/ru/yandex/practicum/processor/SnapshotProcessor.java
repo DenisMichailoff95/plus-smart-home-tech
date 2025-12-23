@@ -2,15 +2,16 @@ package ru.yandex.practicum.processor;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.avro.io.BinaryDecoder;
 import org.apache.avro.io.DecoderFactory;
+import org.apache.avro.specific.SpecificDatumReader;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.springframework.stereotype.Component;
+import ru.yandex.practicum.config.KafkaConfig;
 import ru.yandex.practicum.kafka.telemetry.event.SensorsSnapshotAvro;
 import ru.yandex.practicum.service.SnapshotAnalysisService;
-import org.apache.avro.io.BinaryDecoder;
-import org.apache.avro.specific.SpecificDatumReader;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -24,20 +25,24 @@ import java.util.Properties;
 public class SnapshotProcessor {
 
     private final SnapshotAnalysisService snapshotAnalysisService;
+    private final KafkaConfig kafkaConfig;
+
     private volatile boolean running = true;
     private KafkaConsumer<String, byte[]> consumer;
     private final DecoderFactory decoderFactory = DecoderFactory.get();
-
-    private static final String SNAPSHOTS_TOPIC = "telemetry.snapshots.v1";
-    private static final String CONSUMER_GROUP = "analyzer-snapshots";
 
     public void start() {
         log.info("Starting Snapshot Processor...");
         initializeConsumer();
 
         try {
-            consumer.subscribe(List.of(SNAPSHOTS_TOPIC));
-            log.info("Subscribed to topic: {}", SNAPSHOTS_TOPIC);
+            String snapshotsTopic = "telemetry.snapshots.v1";
+            String consumerGroup = "analyzer-snapshots";
+
+            consumer.subscribe(List.of(snapshotsTopic));
+            log.info("Subscribed to topic: {}", snapshotsTopic);
+            log.info("Consumer group: {}", consumerGroup);
+            log.info("Bootstrap servers: {}", kafkaConfig.getBootstrapServers());
 
             while (running) {
                 ConsumerRecords<String, byte[]> records = consumer.poll(Duration.ofMillis(1000));
@@ -57,8 +62,8 @@ public class SnapshotProcessor {
 
     private void initializeConsumer() {
         Properties props = new Properties();
-        props.put("bootstrap.servers", "localhost:9092");
-        props.put("group.id", CONSUMER_GROUP);
+        props.put("bootstrap.servers", kafkaConfig.getBootstrapServers());
+        props.put("group.id", "analyzer-snapshots");
         props.put("key.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
         props.put("value.deserializer", "org.apache.kafka.common.serialization.ByteArrayDeserializer");
         props.put("auto.offset.reset", "earliest");

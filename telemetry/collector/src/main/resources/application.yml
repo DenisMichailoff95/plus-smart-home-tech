@@ -1,24 +1,19 @@
 spring:
   application:
     name: collector
+  config:
+    import: "configserver:"
+  cloud:
+    config:
+      discovery:
+        enabled: true
+        serviceId: config-server
+      fail-fast: true
+      retry:
+        useRandomPolicy: true
+        max-interval: 6000
 
-  kafka:
-    bootstrap-servers: localhost:9092
-    properties:
-      security.protocol: PLAINTEXT
-    producer:
-      key-serializer: org.apache.kafka.common.serialization.StringSerializer
-      value-serializer: org.apache.kafka.common.serialization.ByteArraySerializer
-
-grpc:
-  server:
-    port: 59091
-
-
-logging:
-  level:
-    ru.yandex.practicum: INFO
-    org.apache.kafka: WARN
-    org.springframework.kafka: DEBUG
-  pattern:
-    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+eureka:
+  client:
+    serviceUrl:
+      defaultZone: http://${eureka.instance.hostname:localhost}:${eureka.instance.port:8761}/eureka/

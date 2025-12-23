@@ -1,6 +1,7 @@
 package ru.yandex.practicum.repository;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -9,6 +10,7 @@ import ru.yandex.practicum.entity.ScenarioConditionId;
 
 import java.util.List;
 
+@Repository
 public interface ScenarioConditionRepository extends JpaRepository<ScenarioCondition, ScenarioConditionId> {
 
     List<ScenarioCondition> findByScenarioId(Long scenarioId);
