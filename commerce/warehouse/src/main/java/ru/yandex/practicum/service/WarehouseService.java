@@ -9,8 +9,11 @@ import ru.yandex.practicum.dto.warehouse.AddProductToWarehouseRequest;
 import ru.yandex.practicum.dto.warehouse.AddressDto;
 import ru.yandex.practicum.dto.warehouse.BookedProductsDto;
 import ru.yandex.practicum.dto.warehouse.NewProductInWarehouseRequest;
+import ru.yandex.practicum.entity.WarehouseAddress;
 import ru.yandex.practicum.entity.WarehouseItem;
 import ru.yandex.practicum.exception.WarehouseItemNotFoundException;
+import ru.yandex.practicum.mapper.WarehouseMapper;
+import ru.yandex.practicum.repository.WarehouseAddressRepository;
 import ru.yandex.practicum.repository.WarehouseItemRepository;
 
 import java.util.Map;
@@ -23,6 +26,22 @@ import java.util.UUID;
 public class WarehouseService {
 
     private final WarehouseItemRepository warehouseItemRepository;
+    private final WarehouseAddressRepository warehouseAddressRepository;
+    private final WarehouseMapper warehouseMapper;
+
+    private final AddressDto warehouseAddress; // Изменено на final и инициализировано в конструкторе
+
+    /**
+     * Конструктор инициализирует адрес склада случайным образом
+     */
+    public WarehouseService(WarehouseItemRepository warehouseItemRepository,
+                            WarehouseAddressRepository warehouseAddressRepository,
+                            WarehouseMapper warehouseMapper) {
+        this.warehouseItemRepository = warehouseItemRepository;
+        this.warehouseAddressRepository = warehouseAddressRepository;
+        this.warehouseMapper = warehouseMapper;
+        this.warehouseAddress = initializeWarehouseAddress();
+    }
 
     @Transactional
     public void addNewProduct(NewProductInWarehouseRequest request) {
@@ -172,10 +191,22 @@ public class WarehouseService {
     public AddressDto getWarehouseAddress() {
         log.info("[WarehouseService] Retrieving warehouse address");
 
+        // Адрес уже инициализирован в конструкторе
+        log.debug("[WarehouseService] Returning initialized warehouse address");
+
+        return warehouseAddress;
+    }
+
+    /**
+     * Инициализирует адрес склада случайным образом
+     */
+    private AddressDto initializeWarehouseAddress() {
         long startTime = System.currentTimeMillis();
         try {
+            log.debug("[WarehouseService] Initializing warehouse address randomly");
+
             String addressValue = Math.random() > 0.5 ? "ADDRESS_1" : "ADDRESS_2";
-            log.debug("[WarehouseService] Selected address variant: {}", addressValue);
+            log.info("[WarehouseService] Selected warehouse address: {}", addressValue);
 
             AddressDto address = new AddressDto();
             address.setCountry(addressValue);
@@ -185,13 +216,13 @@ public class WarehouseService {
             address.setFlat(addressValue);
 
             long duration = System.currentTimeMillis() - startTime;
-            log.info("[WarehouseService] Address retrieved in {} ms", duration);
-            log.debug("[WarehouseService] Address details: {}", address);
+            log.info("[WarehouseService] Warehouse address initialized in {} ms", duration);
 
             return address;
         } catch (Exception e) {
-            log.error("[WarehouseService] Error retrieving warehouse address", e);
+            log.error("[WarehouseService] Error initializing warehouse address", e);
 
+            // Возвращаем адрес по умолчанию в случае ошибки
             AddressDto defaultAddress = new AddressDto();
             defaultAddress.setCountry("ADDRESS_1");
             defaultAddress.setCity("ADDRESS_1");

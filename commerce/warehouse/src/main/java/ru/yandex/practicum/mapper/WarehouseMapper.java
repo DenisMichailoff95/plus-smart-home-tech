@@ -18,13 +18,17 @@ public interface WarehouseMapper {
 
     AddressDto mapToDto(WarehouseAddress address);
 
-    private AddressDto createDefaultAddress() {
+    default AddressDto createAddressFromValue(String addressValue) {
         AddressDto dto = new AddressDto();
-        dto.setCountry("ADDRESS_1");
-        dto.setCity("ADDRESS_1");
-        dto.setStreet("ADDRESS_1");
-        dto.setHouse("ADDRESS_1");
-        dto.setFlat("ADDRESS_1");
+        dto.setCountry(addressValue);
+        dto.setCity(addressValue);
+        dto.setStreet(addressValue);
+        dto.setHouse(addressValue);
+        dto.setFlat(addressValue);
         return dto;
+    }
+
+    private AddressDto createDefaultAddress() {
+        return createAddressFromValue("ADDRESS_1");
     }
 }
