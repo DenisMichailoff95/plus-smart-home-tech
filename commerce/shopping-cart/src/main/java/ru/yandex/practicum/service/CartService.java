@@ -45,15 +45,16 @@ public class CartService {
 
         long startTime = System.currentTimeMillis();
         try {
-            // ВАЖНО: оставляем поиск только активной корзины для обратной совместимости
-            Cart cart = cartRepository.findActiveCartWithItems(username)
+            // Используем новый метод, который возвращает любую корзину (активную или деактивированную)
+            Cart cart = cartRepository.findCartWithItemsByUsername(username)
                     .orElseGet(() -> {
                         log.info("[CartService] Creating new cart for user: {}", username);
                         return createNewCart(username);
                     });
 
-            log.debug("[CartService] Found cart ID: {} with {} items",
+            log.debug("[CartService] Found cart ID: {} with status: {} and {} items",
                     cart.getShoppingCartId(),
+                    cart.getStatus(),
                     cart.getItems() != null ? cart.getItems().size() : 0);
 
             ShoppingCartDto result = shoppingCartMapper.toDto(cart);
@@ -69,22 +70,6 @@ public class CartService {
         }
     }
 
-    // Добавляем новый метод для получения любой корзины (если нужно)
-    public ShoppingCartDto getAnyCart(String username) {
-        log.info("[CartService] Getting any cart for user: {}", username);
-
-        validateUsername(username);
-
-        Optional<Cart> cart = cartRepository.findByUsername(username);
-        if (cart.isPresent()) {
-            return shoppingCartMapper.toDto(cart.get());
-        }
-
-        // Если корзины нет вообще, создаем новую активную
-        Cart newCart = createNewCart(username);
-        return shoppingCartMapper.toDto(newCart);
-    }
-
     @Transactional
     public ShoppingCartDto addProductsToCart(String username, Map<String, Integer> products) {
         log.info("[CartService] Adding {} products to cart for user: {}",
@@ -95,18 +80,23 @@ public class CartService {
 
         long startTime = System.currentTimeMillis();
         try {
+            // Используем метод, который возвращает только активную корзину
             Cart cart = cartRepository.findActiveCartWithItems(username)
                     .orElseGet(() -> {
                         log.info("[CartService] Creating new cart for adding products, user: {}", username);
                         return createNewCart(username);
                     });
 
-            // Проверяем, что корзина активна
-            checkCartIsActive(cart, username);
-
-            log.debug("[CartService] Cart found/created: ID={}, existing items={}",
+            log.debug("[CartService] Found active cart ID: {} with {} items",
                     cart.getShoppingCartId(),
                     cart.getItems() != null ? cart.getItems().size() : 0);
+
+            // Проверяем, что корзина активна
+            if (cart.getStatus() != Cart.CartStatus.ACTIVE) {
+                log.error("[CartService] Cannot add products to deactivated cart for user: {} with ID: {}",
+                        username, cart.getShoppingCartId());
+                throw new CartDeactivatedException(username, cart.getShoppingCartId());
+            }
 
             int addedCount = 0;
             int updatedCount = 0;
@@ -219,6 +209,7 @@ public class CartService {
 
         long startTime = System.currentTimeMillis();
         try {
+            // Используем метод поиска активной корзины
             Optional<Cart> cartOptional = cartRepository.findByUsernameAndStatus(username, Cart.CartStatus.ACTIVE);
 
             if (cartOptional.isPresent()) {
@@ -248,6 +239,7 @@ public class CartService {
 
         long startTime = System.currentTimeMillis();
         try {
+            // Используем метод, который возвращает только активную корзину
             Cart cart = cartRepository.findActiveCartWithItems(username)
                     .orElseThrow(() -> {
                         log.error("[CartService] Active cart not found for user: {}", username);
@@ -255,7 +247,11 @@ public class CartService {
                     });
 
             // Проверяем, что корзина активна
-            checkCartIsActive(cart, username);
+            if (cart.getStatus() != Cart.CartStatus.ACTIVE) {
+                log.error("[CartService] Cannot remove products from deactivated cart for user: {} with ID: {}",
+                        username, cart.getShoppingCartId());
+                throw new CartDeactivatedException(username, cart.getShoppingCartId());
+            }
 
             if (cart.getItems().isEmpty()) {
                 log.warn("[CartService] Cart is empty for user: {}", username);
@@ -306,6 +302,7 @@ public class CartService {
 
         long startTime = System.currentTimeMillis();
         try {
+            // Используем метод, который возвращает только активную корзину
             Cart cart = cartRepository.findActiveCartWithItems(username)
                     .orElseThrow(() -> {
                         log.error("[CartService] Active cart not found for user: {}", username);
@@ -313,7 +310,11 @@ public class CartService {
                     });
 
             // Проверяем, что корзина активна
-            checkCartIsActive(cart, username);
+            if (cart.getStatus() != Cart.CartStatus.ACTIVE) {
+                log.error("[CartService] Cannot change quantity in deactivated cart for user: {} with ID: {}",
+                        username, cart.getShoppingCartId());
+                throw new CartDeactivatedException(username, cart.getShoppingCartId());
+            }
 
             CartItem cartItem = cartItemRepository.findByCartShoppingCartIdAndProductId(
                             cart.getShoppingCartId(), request.getProductId())
@@ -377,13 +378,5 @@ public class CartService {
         }
 
         log.debug("[CartService] Username validation passed");
-    }
-
-    private void checkCartIsActive(Cart cart, String username) {
-        if (cart.getStatus() != Cart.CartStatus.ACTIVE) {
-            log.error("[CartService] Cart is not active for user: {}. Cart status: {}",
-                    username, cart.getStatus());
-            throw new CartDeactivatedException(username, cart.getShoppingCartId());
-        }
     }
 }

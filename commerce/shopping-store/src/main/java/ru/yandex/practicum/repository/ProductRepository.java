@@ -14,7 +14,6 @@ import java.util.UUID;
 @Repository
 public interface ProductRepository extends JpaRepository<Product, UUID> {
 
-    // Этот метод должен искать активные продукты по категории
     Page<Product> findByProductCategoryAndProductState(
             ru.yandex.practicum.dto.shoppingstore.ProductCategory productCategory,
             ru.yandex.practicum.dto.shoppingstore.ProductState productState,

@@ -40,20 +40,8 @@ public class ShoppingStoreController implements ShoppingStoreClient {
             @RequestParam(value = "size", defaultValue = "20") int size,
             @RequestParam(value = "sort", required = false) List<String> sort) {
 
-        log.info("API: getProductsByCategory - category: {}, page: {}, size: {}, sort: {}",
-                category, page, size, sort);
-
         Pageable pageable = createPageable(page, size, sort);
         Page<ProductDto> productsPage = productService.getProductsByCategory(category, pageable);
-
-        // Логируем найденные продукты для дебага
-        if (log.isDebugEnabled()) {
-            log.debug("Found {} products for category {}:", productsPage.getTotalElements(), category);
-            productsPage.getContent().forEach(product ->
-                    log.debug("  Product: id={}, name={}, category={}, state={}",
-                            product.getProductId(), product.getProductName(),
-                            product.getProductCategory(), product.getProductState()));
-        }
 
         List<PageResponse.SortInfo> sortInfo = convertSort(pageable.getSort());
 
@@ -71,38 +59,30 @@ public class ShoppingStoreController implements ShoppingStoreClient {
     @Override
     @GetMapping("/{productId}")
     public ProductDto getProduct(@PathVariable("productId") UUID productId) {
-        log.info("API: getProduct - productId: {}", productId);
         return productService.getProduct(productId);
     }
 
     @Override
     @PutMapping
     public ProductDto createProduct(@RequestBody ProductDto productDto) {
-        log.info("API: createProduct - productName: {}, productId: {}",
-                productDto.getProductName(), productDto.getProductId());
         return productService.createProduct(productDto);
     }
 
     @Override
     @PostMapping
     public ProductDto updateProduct(@RequestBody ProductDto productDto) {
-        log.info("API: updateProduct - productId: {}, productName: {}",
-                productDto.getProductId(), productDto.getProductName());
         return productService.updateProduct(productDto);
     }
 
     @Override
     @PostMapping("/removeProductFromStore")
     public Boolean removeProductFromStore(@RequestBody UUID productId) {
-        log.info("API: removeProductFromStore - productId: {}", productId);
         return productService.removeProductFromStore(productId);
     }
 
     @Override
     @PostMapping("/quantityState")
     public Boolean setQuantityState(@RequestBody SetProductQuantityStateRequest request) {
-        log.info("API: setQuantityState - productId: {}, quantityState: {}",
-                request.getProductId(), request.getQuantityState());
         return productService.setQuantityState(request);
     }
 
@@ -110,9 +90,6 @@ public class ShoppingStoreController implements ShoppingStoreClient {
     public Boolean setQuantityStateFromParams(
             @RequestParam("productId") UUID productId,
             @RequestParam("quantityState") String quantityState) {
-
-        log.info("API: setQuantityStateFromParams - productId: {}, quantityState: {}",
-                productId, quantityState);
 
         SetProductQuantityStateRequest request = new SetProductQuantityStateRequest();
         request.setProductId(productId);
