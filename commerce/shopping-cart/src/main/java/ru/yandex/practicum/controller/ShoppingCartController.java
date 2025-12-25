@@ -40,7 +40,6 @@ public class ShoppingCartController implements ShoppingCartClient {
         cartService.deactivateCart(username);
     }
 
-    @Override
     @PutMapping
     public ShoppingCartDto addProductsToCart(
             @RequestParam("username") String username,
@@ -48,7 +47,6 @@ public class ShoppingCartController implements ShoppingCartClient {
         return cartService.addProductsToCart(username, products);
     }
 
-    @Override
     @PostMapping("/remove")
     public ShoppingCartDto removeProductsFromCart(
             @RequestParam("username") String username,
@@ -56,7 +54,6 @@ public class ShoppingCartController implements ShoppingCartClient {
         return cartService.removeProductsFromCart(username, productIds);
     }
 
-    @Override
     @PostMapping("/change-quantity")
     public ShoppingCartDto changeProductQuantity(
             @RequestParam("username") String username,

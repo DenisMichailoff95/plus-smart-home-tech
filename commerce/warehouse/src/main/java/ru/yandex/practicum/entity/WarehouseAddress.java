@@ -33,4 +33,15 @@ public class WarehouseAddress {
 
     @Column(nullable = false)
     private String flat;
+
+    public static WarehouseAddress getRandomAddress() {
+        WarehouseAddress address = new WarehouseAddress();
+        String addressValue = Math.random() > 0.5 ? "ADDRESS_1" : "ADDRESS_2";
+        address.setCountry(addressValue);
+        address.setCity(addressValue);
+        address.setStreet(addressValue);
+        address.setHouse(addressValue);
+        address.setFlat(addressValue);
+        return address;
+    }
 }
