@@ -16,6 +16,4 @@ public interface CartRepository extends JpaRepository<Cart, UUID> {
 
     @Query("SELECT c FROM Cart c LEFT JOIN FETCH c.items WHERE c.username = :username AND c.status = 'ACTIVE'")
     Optional<Cart> findActiveCartWithItems(@Param("username") String username);
-
-    boolean existsByUsernameAndStatus(String username, Cart.CartStatus status);
 }

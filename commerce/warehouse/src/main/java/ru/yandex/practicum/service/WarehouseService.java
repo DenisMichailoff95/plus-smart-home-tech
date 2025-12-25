@@ -11,8 +11,6 @@ import ru.yandex.practicum.dto.warehouse.BookedProductsDto;
 import ru.yandex.practicum.dto.warehouse.NewProductInWarehouseRequest;
 import ru.yandex.practicum.entity.WarehouseItem;
 import ru.yandex.practicum.exception.WarehouseItemNotFoundException;
-import ru.yandex.practicum.mapper.WarehouseMapper;
-import ru.yandex.practicum.repository.WarehouseAddressRepository;
 import ru.yandex.practicum.repository.WarehouseItemRepository;
 
 import java.util.Map;
@@ -25,8 +23,6 @@ import java.util.UUID;
 public class WarehouseService {
 
     private final WarehouseItemRepository warehouseItemRepository;
-    private final WarehouseAddressRepository warehouseAddressRepository;
-    private final WarehouseMapper warehouseMapper;
 
     @Transactional
     public void addNewProduct(NewProductInWarehouseRequest request) {
