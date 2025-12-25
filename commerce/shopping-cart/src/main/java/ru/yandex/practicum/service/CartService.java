@@ -12,6 +12,7 @@ import ru.yandex.practicum.exception.CartNotFoundException;
 import ru.yandex.practicum.exception.NotAuthorizedUserException;
 import ru.yandex.practicum.exception.NoProductsInShoppingCartException;
 import ru.yandex.practicum.exception.InsufficientStockException;
+import ru.yandex.practicum.exception.CartDeactivatedException;
 import ru.yandex.practicum.mapper.ShoppingCartMapper;
 import ru.yandex.practicum.repository.CartRepository;
 import ru.yandex.practicum.repository.CartItemRepository;
@@ -44,14 +45,16 @@ public class CartService {
 
         long startTime = System.currentTimeMillis();
         try {
-            Cart cart = cartRepository.findActiveCartWithItems(username)
+            // Находим любую корзину (активную или деактивированную) для пользователя
+            Cart cart = cartRepository.findByUsername(username)
                     .orElseGet(() -> {
                         log.info("[CartService] Creating new cart for user: {}", username);
                         return createNewCart(username);
                     });
 
-            log.debug("[CartService] Found cart ID: {} with {} items",
+            log.debug("[CartService] Found cart ID: {} with status: {} and {} items",
                     cart.getShoppingCartId(),
+                    cart.getStatus(),
                     cart.getItems() != null ? cart.getItems().size() : 0);
 
             ShoppingCartDto result = shoppingCartMapper.toDto(cart);
@@ -82,6 +85,9 @@ public class CartService {
                         log.info("[CartService] Creating new cart for adding products, user: {}", username);
                         return createNewCart(username);
                     });
+
+            // Проверяем, что корзина активна
+            checkCartIsActive(cart, username);
 
             log.debug("[CartService] Cart found/created: ID={}, existing items={}",
                     cart.getShoppingCartId(),
@@ -229,9 +235,12 @@ public class CartService {
         try {
             Cart cart = cartRepository.findActiveCartWithItems(username)
                     .orElseThrow(() -> {
-                        log.error("[CartService] Cart not found for user: {}", username);
+                        log.error("[CartService] Active cart not found for user: {}", username);
                         return new CartNotFoundException(username, null);
                     });
+
+            // Проверяем, что корзина активна
+            checkCartIsActive(cart, username);
 
             if (cart.getItems().isEmpty()) {
                 log.warn("[CartService] Cart is empty for user: {}", username);
@@ -284,9 +293,12 @@ public class CartService {
         try {
             Cart cart = cartRepository.findActiveCartWithItems(username)
                     .orElseThrow(() -> {
-                        log.error("[CartService] Cart not found for user: {}", username);
+                        log.error("[CartService] Active cart not found for user: {}", username);
                         return new CartNotFoundException(username, null);
                     });
+
+            // Проверяем, что корзина активна
+            checkCartIsActive(cart, username);
 
             CartItem cartItem = cartItemRepository.findByCartShoppingCartIdAndProductId(
                             cart.getShoppingCartId(), request.getProductId())
@@ -350,5 +362,13 @@ public class CartService {
         }
 
         log.debug("[CartService] Username validation passed");
+    }
+
+    private void checkCartIsActive(Cart cart, String username) {
+        if (cart.getStatus() != Cart.CartStatus.ACTIVE) {
+            log.error("[CartService] Cart is not active for user: {}. Cart status: {}",
+                    username, cart.getStatus());
+            throw new CartDeactivatedException(username, cart.getShoppingCartId());
+        }
     }
 }
