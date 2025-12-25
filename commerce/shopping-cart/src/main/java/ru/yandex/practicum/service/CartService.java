@@ -11,11 +11,14 @@ import ru.yandex.practicum.entity.CartItem;
 import ru.yandex.practicum.exception.CartNotFoundException;
 import ru.yandex.practicum.exception.NotAuthorizedUserException;
 import ru.yandex.practicum.exception.NoProductsInShoppingCartException;
+import ru.yandex.practicum.exception.InsufficientStockException;
 import ru.yandex.practicum.mapper.ShoppingCartMapper;
 import ru.yandex.practicum.repository.CartRepository;
 import ru.yandex.practicum.repository.CartItemRepository;
+import ru.yandex.practicum.client.WarehouseClient;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -31,6 +34,7 @@ public class CartService {
     private final CartRepository cartRepository;
     private final CartItemRepository cartItemRepository;
     private final ShoppingCartMapper shoppingCartMapper;
+    private final WarehouseClient warehouseClient;
 
     public ShoppingCartDto getShoppingCart(String username) {
         log.info("[CartService] Getting shopping cart for user: {}", username);
@@ -86,11 +90,13 @@ public class CartService {
             int addedCount = 0;
             int updatedCount = 0;
 
+            // Проверяем доступность товаров на складе
+            Map<String, Integer> validProducts = new HashMap<>();
             for (Map.Entry<String, Integer> entry : products.entrySet()) {
                 UUID productId;
                 try {
                     productId = UUID.fromString(entry.getKey());
-                    log.debug("[CartService] Processing product: {}, quantity: {}",
+                    log.debug("[CartService] Validating product: {}, quantity: {}",
                             productId, entry.getValue());
                 } catch (IllegalArgumentException e) {
                     log.warn("[CartService] Invalid UUID format: {}, skipping", entry.getKey());
@@ -105,7 +111,34 @@ public class CartService {
                     continue;
                 }
 
-                Optional<CartItem> existingItem = cartItemRepository.findByCartShoppingCartIdAndProductId(cart.getShoppingCartId(), productId);
+                // Добавляем в валидные продукты для проверки на складе
+                validProducts.put(entry.getKey(), targetQuantity);
+            }
+
+            if (!validProducts.isEmpty()) {
+                // Создаем временную корзину для проверки доступности товаров
+                ShoppingCartDto tempCart = new ShoppingCartDto();
+                tempCart.setShoppingCartId(cart.getShoppingCartId());
+                tempCart.setProducts(validProducts);
+
+                try {
+                    // Проверяем доступность товаров через Warehouse сервис
+                    log.debug("[CartService] Checking product availability with warehouse service");
+                    warehouseClient.checkProductQuantityEnoughForShoppingCart(tempCart);
+                    log.debug("[CartService] All products are available in warehouse");
+                } catch (Exception e) {
+                    log.error("[CartService] Warehouse check failed: {}", e.getMessage());
+                    throw new InsufficientStockException("Not enough products in warehouse");
+                }
+            }
+
+            // Добавляем товары в корзину после успешной проверки
+            for (Map.Entry<String, Integer> entry : validProducts.entrySet()) {
+                UUID productId = UUID.fromString(entry.getKey());
+                Integer targetQuantity = entry.getValue();
+
+                Optional<CartItem> existingItem = cartItemRepository.findByCartShoppingCartIdAndProductId(
+                        cart.getShoppingCartId(), productId);
 
                 if (existingItem.isPresent()) {
                     CartItem cartItem = existingItem.get();
