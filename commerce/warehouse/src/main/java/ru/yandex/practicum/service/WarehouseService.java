@@ -1,6 +1,5 @@
 package ru.yandex.practicum.service;
 
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -11,6 +10,7 @@ import ru.yandex.practicum.dto.warehouse.BookedProductsDto;
 import ru.yandex.practicum.dto.warehouse.NewProductInWarehouseRequest;
 import ru.yandex.practicum.entity.WarehouseItem;
 import ru.yandex.practicum.exception.WarehouseItemNotFoundException;
+import ru.yandex.practicum.mapper.WarehouseMapper;
 import ru.yandex.practicum.repository.WarehouseItemRepository;
 
 import java.util.Map;
@@ -18,11 +18,21 @@ import java.util.UUID;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class WarehouseService {
 
     private final WarehouseItemRepository warehouseItemRepository;
+    private final WarehouseMapper warehouseMapper;
+    private final String warehouseAddress;
+
+    // Конструктор для инициализации адреса склада
+    public WarehouseService(WarehouseItemRepository warehouseItemRepository, WarehouseMapper warehouseMapper) {
+        this.warehouseItemRepository = warehouseItemRepository;
+        this.warehouseMapper = warehouseMapper;
+        // Генерируем адрес один раз при создании сервиса
+        this.warehouseAddress = Math.random() > 0.5 ? "ADDRESS_1" : "ADDRESS_2";
+        log.info("[WarehouseService] Warehouse address initialized as: {}", this.warehouseAddress);
+    }
 
     @Transactional
     public void addNewProduct(NewProductInWarehouseRequest request) {
@@ -174,15 +184,14 @@ public class WarehouseService {
 
         long startTime = System.currentTimeMillis();
         try {
-            String addressValue = Math.random() > 0.5 ? "ADDRESS_1" : "ADDRESS_2";
-            log.debug("[WarehouseService] Selected address variant: {}", addressValue);
+            log.debug("[WarehouseService] Using pre-initialized address: {}", warehouseAddress);
 
             AddressDto address = new AddressDto();
-            address.setCountry(addressValue);
-            address.setCity(addressValue);
-            address.setStreet(addressValue);
-            address.setHouse(addressValue);
-            address.setFlat(addressValue);
+            address.setCountry(warehouseAddress);
+            address.setCity(warehouseAddress);
+            address.setStreet(warehouseAddress);
+            address.setHouse(warehouseAddress);
+            address.setFlat(warehouseAddress);
 
             long duration = System.currentTimeMillis() - startTime;
             log.info("[WarehouseService] Address retrieved in {} ms", duration);
