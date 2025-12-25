@@ -9,7 +9,6 @@ import ru.yandex.practicum.dto.warehouse.AddProductToWarehouseRequest;
 import ru.yandex.practicum.dto.warehouse.AddressDto;
 import ru.yandex.practicum.dto.warehouse.BookedProductsDto;
 import ru.yandex.practicum.dto.warehouse.NewProductInWarehouseRequest;
-import ru.yandex.practicum.entity.WarehouseAddress;
 import ru.yandex.practicum.entity.WarehouseItem;
 import ru.yandex.practicum.exception.WarehouseItemNotFoundException;
 import ru.yandex.practicum.mapper.WarehouseMapper;
@@ -29,19 +28,8 @@ public class WarehouseService {
     private final WarehouseAddressRepository warehouseAddressRepository;
     private final WarehouseMapper warehouseMapper;
 
-    private final AddressDto warehouseAddress; // Изменено на final и инициализировано в конструкторе
-
-    /**
-     * Конструктор инициализирует адрес склада случайным образом
-     */
-    public WarehouseService(WarehouseItemRepository warehouseItemRepository,
-                            WarehouseAddressRepository warehouseAddressRepository,
-                            WarehouseMapper warehouseMapper) {
-        this.warehouseItemRepository = warehouseItemRepository;
-        this.warehouseAddressRepository = warehouseAddressRepository;
-        this.warehouseMapper = warehouseMapper;
-        this.warehouseAddress = initializeWarehouseAddress();
-    }
+    // Статическая инициализация при загрузке класса
+    private static final AddressDto warehouseAddress = initializeWarehouseAddress();
 
     @Transactional
     public void addNewProduct(NewProductInWarehouseRequest request) {
@@ -190,17 +178,14 @@ public class WarehouseService {
 
     public AddressDto getWarehouseAddress() {
         log.info("[WarehouseService] Retrieving warehouse address");
-
-        // Адрес уже инициализирован в конструкторе
         log.debug("[WarehouseService] Returning initialized warehouse address");
-
         return warehouseAddress;
     }
 
     /**
      * Инициализирует адрес склада случайным образом
      */
-    private AddressDto initializeWarehouseAddress() {
+    private static AddressDto initializeWarehouseAddress() {
         long startTime = System.currentTimeMillis();
         try {
             log.debug("[WarehouseService] Initializing warehouse address randomly");
