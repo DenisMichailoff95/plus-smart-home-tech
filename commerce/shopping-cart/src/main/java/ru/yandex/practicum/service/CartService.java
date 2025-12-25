@@ -45,16 +45,15 @@ public class CartService {
 
         long startTime = System.currentTimeMillis();
         try {
-            // Находим любую корзину (активную или деактивированную) для пользователя
-            Cart cart = cartRepository.findByUsername(username)
+            // ВАЖНО: оставляем поиск только активной корзины для обратной совместимости
+            Cart cart = cartRepository.findActiveCartWithItems(username)
                     .orElseGet(() -> {
                         log.info("[CartService] Creating new cart for user: {}", username);
                         return createNewCart(username);
                     });
 
-            log.debug("[CartService] Found cart ID: {} with status: {} and {} items",
+            log.debug("[CartService] Found cart ID: {} with {} items",
                     cart.getShoppingCartId(),
-                    cart.getStatus(),
                     cart.getItems() != null ? cart.getItems().size() : 0);
 
             ShoppingCartDto result = shoppingCartMapper.toDto(cart);
@@ -68,6 +67,22 @@ public class CartService {
             log.error("[CartService] Error getting cart for user: {}", username, e);
             throw e;
         }
+    }
+
+    // Добавляем новый метод для получения любой корзины (если нужно)
+    public ShoppingCartDto getAnyCart(String username) {
+        log.info("[CartService] Getting any cart for user: {}", username);
+
+        validateUsername(username);
+
+        Optional<Cart> cart = cartRepository.findByUsername(username);
+        if (cart.isPresent()) {
+            return shoppingCartMapper.toDto(cart.get());
+        }
+
+        // Если корзины нет вообще, создаем новую активную
+        Cart newCart = createNewCart(username);
+        return shoppingCartMapper.toDto(newCart);
     }
 
     @Transactional
