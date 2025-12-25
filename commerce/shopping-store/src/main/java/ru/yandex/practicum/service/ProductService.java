@@ -28,14 +28,24 @@ public class ProductService {
     public Page<ProductDto> getProductsByCategory(String category, Pageable pageable) {
         log.info("Getting products by category: {}, pageable: {}", category, pageable);
 
-        var productCategory = ru.yandex.practicum.dto.shoppingstore.ProductCategory.valueOf(category);
-        Page<Product> products = productRepository.findByProductCategoryAndProductState(
-                productCategory,
-                ru.yandex.practicum.dto.shoppingstore.ProductState.ACTIVE,
-                pageable
-        );
+        // Проверяем валидность категории
+        try {
+            var productCategory = ru.yandex.practicum.dto.shoppingstore.ProductCategory.valueOf(category.toUpperCase());
 
-        return products.map(productMapper::toDto);
+            Page<Product> products = productRepository.findByProductCategoryAndProductState(
+                    productCategory,
+                    ru.yandex.practicum.dto.shoppingstore.ProductState.ACTIVE,
+                    pageable
+            );
+
+            log.debug("Found {} products for category: {}", products.getTotalElements(), category);
+            return products.map(productMapper::toDto);
+
+        } catch (IllegalArgumentException e) {
+            log.error("Invalid category: {}", category);
+            // Возвращаем пустую страницу для невалидной категории
+            return Page.empty(pageable);
+        }
     }
 
     public ProductDto getProduct(UUID productId) {
@@ -51,12 +61,26 @@ public class ProductService {
     public ProductDto createProduct(ProductDto productDto) {
         log.info("Creating product: {}", productDto.getProductName());
 
+        // Убедимся, что продукт создается с правильным именем
+        if (productDto.getProductName() == null || productDto.getProductName().trim().isEmpty()) {
+            log.error("Product name cannot be null or empty");
+            throw new IllegalArgumentException("Product name cannot be null or empty");
+        }
+
         Product product = productMapper.toEntity(productDto);
         if (product.getProductId() == null) {
             product.setProductId(UUID.randomUUID());
         }
 
+        // Убедимся, что продукт создается активным
+        if (product.getProductState() == null) {
+            product.setProductState(ru.yandex.practicum.dto.shoppingstore.ProductState.ACTIVE);
+        }
+
         Product savedProduct = productRepository.save(product);
+        log.info("Product created successfully: id={}, name={}",
+                savedProduct.getProductId(), savedProduct.getProductName());
+
         return productMapper.toDto(savedProduct);
     }
 
@@ -67,8 +91,14 @@ public class ProductService {
         Product existingProduct = productRepository.findById(productDto.getProductId())
                 .orElseThrow(() -> new ProductNotFoundException(productDto.getProductId()));
 
+        // Сохраняем оригинальное имя для логов
+        String originalName = existingProduct.getProductName();
+
         productMapper.updateEntityFromDto(productDto, existingProduct);
         Product updatedProduct = productRepository.save(existingProduct);
+
+        log.info("Product updated: id={}, original name={}, new name={}",
+                productDto.getProductId(), originalName, updatedProduct.getProductName());
 
         return productMapper.toDto(updatedProduct);
     }
@@ -83,6 +113,7 @@ public class ProductService {
         product.setProductState(ru.yandex.practicum.dto.shoppingstore.ProductState.DEACTIVATE);
         productRepository.save(product);
 
+        log.info("Product deactivated: {}", productId);
         return true;
     }
 
@@ -96,6 +127,8 @@ public class ProductService {
         product.setQuantityState(request.getQuantityState());
         productRepository.save(product);
 
+        log.info("Quantity state updated for product: {} to {}",
+                request.getProductId(), request.getQuantityState());
         return true;
     }
 }
