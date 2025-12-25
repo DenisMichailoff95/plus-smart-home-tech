@@ -1,5 +1,6 @@
 package ru.yandex.practicum.service;
 
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -8,30 +9,63 @@ import ru.yandex.practicum.dto.warehouse.AddProductToWarehouseRequest;
 import ru.yandex.practicum.dto.warehouse.AddressDto;
 import ru.yandex.practicum.dto.warehouse.BookedProductsDto;
 import ru.yandex.practicum.dto.warehouse.NewProductInWarehouseRequest;
+import ru.yandex.practicum.entity.WarehouseAddress;
 import ru.yandex.practicum.entity.WarehouseItem;
 import ru.yandex.practicum.exception.WarehouseItemNotFoundException;
 import ru.yandex.practicum.mapper.WarehouseMapper;
+import ru.yandex.practicum.repository.WarehouseAddressRepository;
 import ru.yandex.practicum.repository.WarehouseItemRepository;
 
+import jakarta.annotation.PostConstruct;
 import java.util.Map;
 import java.util.UUID;
 
 @Slf4j
 @Service
+@RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class WarehouseService {
 
     private final WarehouseItemRepository warehouseItemRepository;
+    private final WarehouseAddressRepository warehouseAddressRepository;
     private final WarehouseMapper warehouseMapper;
-    private final String warehouseAddress;
 
-    // Конструктор для инициализации адреса склада
-    public WarehouseService(WarehouseItemRepository warehouseItemRepository, WarehouseMapper warehouseMapper) {
-        this.warehouseItemRepository = warehouseItemRepository;
-        this.warehouseMapper = warehouseMapper;
-        // Генерируем адрес один раз при создании сервиса
-        this.warehouseAddress = Math.random() > 0.5 ? "ADDRESS_1" : "ADDRESS_2";
-        log.info("[WarehouseService] Warehouse address initialized as: {}", this.warehouseAddress);
+    private WarehouseAddress warehouseAddress; // Кэшируем адрес при инициализации
+
+    @PostConstruct
+    public void init() {
+        initializeWarehouseAddress();
+    }
+
+    private void initializeWarehouseAddress() {
+        log.info("[WarehouseService] Initializing warehouse address...");
+
+        // Пытаемся найти существующий адрес в базе данных
+        if (warehouseAddressRepository.count() > 0) {
+            warehouseAddress = warehouseAddressRepository.findAll().get(0);
+            log.info("[WarehouseService] Using existing warehouse address from database: {}",
+                    warehouseAddress.getStreet());
+        } else {
+            // Создаем случайный адрес при инициализации
+            warehouseAddress = createRandomAddress();
+            warehouseAddressRepository.save(warehouseAddress);
+            log.info("[WarehouseService] Created new random warehouse address: {}",
+                    warehouseAddress.getStreet());
+        }
+
+        log.debug("[WarehouseService] Warehouse address initialized: country={}, city={}, street={}",
+                warehouseAddress.getCountry(), warehouseAddress.getCity(), warehouseAddress.getStreet());
+    }
+
+    private WarehouseAddress createRandomAddress() {
+        WarehouseAddress address = new WarehouseAddress();
+        String addressValue = Math.random() > 0.5 ? "ADDRESS_1" : "ADDRESS_2";
+        address.setCountry(addressValue);
+        address.setCity(addressValue);
+        address.setStreet(addressValue);
+        address.setHouse(addressValue);
+        address.setFlat(addressValue);
+        return address;
     }
 
     @Transactional
@@ -184,14 +218,8 @@ public class WarehouseService {
 
         long startTime = System.currentTimeMillis();
         try {
-            log.debug("[WarehouseService] Using pre-initialized address: {}", warehouseAddress);
-
-            AddressDto address = new AddressDto();
-            address.setCountry(warehouseAddress);
-            address.setCity(warehouseAddress);
-            address.setStreet(warehouseAddress);
-            address.setHouse(warehouseAddress);
-            address.setFlat(warehouseAddress);
+            // Теперь используем заранее инициализированный адрес
+            AddressDto address = warehouseMapper.toDto(warehouseAddress);
 
             long duration = System.currentTimeMillis() - startTime;
             log.info("[WarehouseService] Address retrieved in {} ms", duration);

@@ -19,14 +19,12 @@ public interface WarehouseMapper {
     AddressDto mapToDto(WarehouseAddress address);
 
     private AddressDto createDefaultAddress() {
-        // Теперь не генерируем случайный адрес, а возвращаем фиксированный
-        // или используем переданный из сервиса
         AddressDto dto = new AddressDto();
-        dto.setCountry("DEFAULT_ADDRESS");
-        dto.setCity("DEFAULT_ADDRESS");
-        dto.setStreet("DEFAULT_ADDRESS");
-        dto.setHouse("DEFAULT_ADDRESS");
-        dto.setFlat("DEFAULT_ADDRESS");
+        dto.setCountry("ADDRESS_1");
+        dto.setCity("ADDRESS_1");
+        dto.setStreet("ADDRESS_1");
+        dto.setHouse("ADDRESS_1");
+        dto.setFlat("ADDRESS_1");
         return dto;
     }
 }
