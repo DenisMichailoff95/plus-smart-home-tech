@@ -1,0 +1,43 @@
+spring:
+  application:
+    name: payment
+  datasource:
+    url: jdbc:postgresql://localhost:5432/analyzer
+    username: postgres
+    password: postgres
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: create
+    show-sql: true
+    properties:
+      hibernate:
+        default_schema: payment_schema
+        format_sql: true
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:schema.sql
+
+server:
+  port: 0
+
+eureka:
+  instance:
+    prefer-ip-address: true
+    hostname: ${spring.cloud.client.ip-address}
+    ip-address: ${spring.cloud.client.ip-address}
+  client:
+    serviceUrl:
+      defaultZone: http://${eureka.instance.hostname:localhost}:${eureka.instance.port:8761}/eureka/
+
+logging:
+  level:
+    ru.yandex.practicum: INFO
+
+feign:
+  client:
+    order:
+      url: http://order:${server.port}
+    shopping-store:
+      url: http://shopping-store:${server.port}

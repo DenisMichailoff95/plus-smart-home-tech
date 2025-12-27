@@ -14,14 +14,19 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-@Mapper(componentModel = "spring", uses = UUIDMapper.class)
+@Mapper(componentModel = "spring")
 public interface ShoppingCartMapper {
 
     @Mapping(target = "products", source = "items", qualifiedByName = "mapItemsToProducts")
+    @Mapping(target = "shoppingCartId", source = "shoppingCartId")
     ShoppingCartDto toDto(Cart cart);
 
     @Mapping(target = "items", source = "products", qualifiedByName = "mapProductsToItems")
+    @Mapping(target = "shoppingCartId", source = "shoppingCartId")
     @Mapping(target = "username", ignore = true)
+    @Mapping(target = "status", ignore = true)
+    @Mapping(target = "createdAt", ignore = true)
+    @Mapping(target = "updatedAt", ignore = true)
     Cart toEntity(ShoppingCartDto dto);
 
     @AfterMapping
@@ -47,13 +52,12 @@ public interface ShoppingCartMapper {
             return new HashMap<>();
         }
 
-        Map<String, Integer> products = new HashMap<>();
-        for (CartItem item : items) {
-            if (item != null && item.getProductId() != null) {
-                products.put(item.getProductId().toString(), item.getQuantity());
-            }
-        }
-        return products;
+        return items.stream()
+                .filter(item -> item != null && item.getProductId() != null)
+                .collect(Collectors.toMap(
+                        item -> item.getProductId().toString(),
+                        CartItem::getQuantity
+                ));
     }
 
     @Named("mapProductsToItems")
@@ -64,11 +68,16 @@ public interface ShoppingCartMapper {
 
         return products.entrySet().stream()
                 .map(entry -> {
-                    CartItem item = new CartItem();
-                    item.setProductId(UUID.fromString(entry.getKey()));
-                    item.setQuantity(entry.getValue());
-                    return item;
+                    try {
+                        CartItem item = new CartItem();
+                        item.setProductId(UUID.fromString(entry.getKey()));
+                        item.setQuantity(entry.getValue());
+                        return item;
+                    } catch (IllegalArgumentException e) {
+                        return null;
+                    }
                 })
+                .filter(item -> item != null)
                 .collect(Collectors.toList());
     }
 }

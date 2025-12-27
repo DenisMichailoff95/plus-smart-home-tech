@@ -1,0 +1,54 @@
+spring:
+  application:
+    name: delivery
+  datasource:
+    url: jdbc:postgresql://localhost:5432/analyzer
+    username: postgres
+    password: postgres
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: create
+    show-sql: true
+    properties:
+      hibernate:
+        default_schema: delivery_schema
+        format_sql: true
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:schema.sql
+
+server:
+  port: 0
+
+eureka:
+  instance:
+    prefer-ip-address: true
+    hostname: ${spring.cloud.client.ip-address}
+    ip-address: ${spring.cloud.client.ip-address}
+    # уникальный instance-id для каждого запуска
+    instance-id: ${spring.application.name}:${random.uuid}
+
+    # быстрая регистрация в Eureka
+    lease-renewal-interval-in-seconds: 5
+    lease-expiration-duration-in-seconds: 15
+  client:
+    serviceUrl:
+      defaultZone: http://${eureka.instance.hostname:localhost}:${eureka.instance.port:8761}/eureka/
+    # частая синхронизация с Eureka
+    registry-fetch-interval-seconds: 5
+    instance-info-replication-interval-seconds: 5
+
+logging:
+  level:
+    ru.yandex.practicum: INFO
+    # для отладки Eureka
+    org.springframework.cloud.netflix.eureka: INFO
+
+feign:
+  client:
+    order:
+      url: http://order:${server.port}
+    warehouse:
+      url: http://warehouse:${server.port}
