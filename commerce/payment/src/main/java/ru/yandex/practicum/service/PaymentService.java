@@ -42,6 +42,7 @@ public class PaymentService {
         BigDecimal deliveryCost = orderDto.getDeliveryPrice();
 
         if (deliveryCost == null) {
+            log.error("Delivery cost is null for order: {}", orderDto.getOrderId());
             throw new NotEnoughInfoInOrderToCalculateException("Delivery cost is not specified");
         }
 
@@ -56,8 +57,10 @@ public class PaymentService {
         payment.setFeeTotal(feeTotal);
 
         Payment savedPayment = paymentRepository.save(payment);
-        log.info("Payment created with ID: {} for order: {}",
-                savedPayment.getPaymentId(), orderDto.getOrderId());
+        log.info("Payment created with ID: {} for order: {}, total: ${} (products: ${}, delivery: ${}, fee: ${})",
+                savedPayment.getPaymentId(),
+                orderDto.getOrderId(),
+                totalCost, productCost, deliveryCost, feeTotal);
 
         return paymentMapper.toDto(savedPayment);
     }
@@ -71,10 +74,15 @@ public class PaymentService {
         BigDecimal deliveryCost = orderDto.getDeliveryPrice();
 
         if (deliveryCost == null) {
+            log.error("Delivery cost is null for order: {}", orderDto.getOrderId());
             throw new NotEnoughInfoInOrderToCalculateException("Delivery cost is not specified");
         }
 
-        return calculateTotalCost(productCost, deliveryCost);
+        BigDecimal totalCost = calculateTotalCost(productCost, deliveryCost);
+        log.info("Total cost for order {}: ${} (products: ${}, delivery: ${})",
+                orderDto.getOrderId(), totalCost, productCost, deliveryCost);
+
+        return totalCost;
     }
 
     public BigDecimal productCost(OrderDto orderDto) {
@@ -82,7 +90,10 @@ public class PaymentService {
 
         validateOrderForCalculation(orderDto);
 
-        return calculateProductCostInternal(orderDto);
+        BigDecimal cost = calculateProductCostInternal(orderDto);
+        log.info("Product cost for order {}: ${}", orderDto.getOrderId(), cost);
+
+        return cost;
     }
 
     @Transactional
@@ -90,14 +101,23 @@ public class PaymentService {
         log.info("Processing failed payment for payment ID: {}", paymentId);
 
         Payment payment = paymentRepository.findById(paymentId)
-                .orElseThrow(() -> new NoOrderFoundException(paymentId));
+                .orElseThrow(() -> {
+                    log.error("Payment not found: {}", paymentId);
+                    return new NoOrderFoundException(paymentId);
+                });
 
         payment.setStatus(PaymentStatus.FAILED);
         paymentRepository.save(payment);
 
-        orderPaymentClient.paymentFailed(payment.getOrderId());
+        try {
+            orderPaymentClient.paymentFailed(payment.getOrderId());
+            log.info("Order {} status updated to PAYMENT_FAILED", payment.getOrderId());
+        } catch (Exception e) {
+            log.error("Failed to update order status for payment {}: {}", paymentId, e.getMessage(), e);
+            // Payment is already marked as FAILED, but we should log the integration failure
+        }
 
-        log.info("Payment {} marked as FAILED", paymentId);
+        log.info("Payment {} marked as FAILED for order: {}", paymentId, payment.getOrderId());
     }
 
     private BigDecimal calculateProductCostInternal(OrderDto orderDto) {
@@ -106,15 +126,24 @@ public class PaymentService {
 
     private BigDecimal calculateRealProductCost(Map<String, Integer> products) {
         if (products == null || products.isEmpty()) {
+            log.warn("Product list is empty");
             return BigDecimal.ZERO;
         }
 
         BigDecimal totalCost = BigDecimal.ZERO;
+        int processedProducts = 0;
+        int failedProducts = 0;
 
         for (Map.Entry<String, Integer> entry : products.entrySet()) {
             try {
                 UUID productId = UUID.fromString(entry.getKey());
                 Integer quantity = entry.getValue();
+
+                if (quantity <= 0) {
+                    log.warn("Invalid quantity {} for product {}, skipping", quantity, productId);
+                    failedProducts++;
+                    continue;
+                }
 
                 ProductDto productDto = shoppingStorePaymentClient.getProduct(productId);
 
@@ -122,47 +151,73 @@ public class PaymentService {
                     BigDecimal productPrice = productDto.getPrice();
                     BigDecimal itemTotal = productPrice.multiply(new BigDecimal(quantity));
                     totalCost = totalCost.add(itemTotal);
-                    log.debug("Product {}: {} x {} = {}", productId, productPrice, quantity, itemTotal);
+                    processedProducts++;
+                    log.debug("Product {}: {} x ${} = ${}",
+                            productId, quantity, productPrice, itemTotal);
                 } else {
-                    log.warn("Product {} not found or has no price", productId);
+                    log.warn("Product {} not found or has no price, using default price", productId);
                     BigDecimal defaultPrice = new BigDecimal("100.00");
-                    totalCost = totalCost.add(defaultPrice.multiply(new BigDecimal(quantity)));
+                    BigDecimal itemTotal = defaultPrice.multiply(new BigDecimal(quantity));
+                    totalCost = totalCost.add(itemTotal);
+                    processedProducts++;
                 }
             } catch (IllegalArgumentException e) {
-                log.error("Invalid UUID format: {}", entry.getKey());
+                log.error("Invalid UUID format: {}, skipping", entry.getKey());
+                failedProducts++;
                 continue;
             } catch (Exception e) {
-                log.error("Error getting product price for: {}", entry.getKey(), e);
+                log.error("Error getting product price for {}: {}", entry.getKey(), e.getMessage());
                 BigDecimal defaultPrice = new BigDecimal("100.00");
-                totalCost = totalCost.add(defaultPrice.multiply(new BigDecimal(entry.getValue())));
+                BigDecimal itemTotal = defaultPrice.multiply(new BigDecimal(entry.getValue()));
+                totalCost = totalCost.add(itemTotal);
+                processedProducts++;
             }
         }
+
+        log.info("Product cost calculation: {} products processed, {} failed, total: ${}",
+                processedProducts, failedProducts, totalCost);
 
         return totalCost.setScale(2, RoundingMode.HALF_UP);
     }
 
     private BigDecimal calculateTotalCost(BigDecimal productCost, BigDecimal deliveryCost) {
+        log.debug("Calculating total cost: product=${}, delivery=${}", productCost, deliveryCost);
+
         BigDecimal fee = calculateFee(productCost);
-        return productCost.add(deliveryCost).add(fee);
+        BigDecimal total = productCost.add(deliveryCost).add(fee);
+
+        log.debug("Total cost breakdown: product=${} + delivery=${} + fee=${} = total=${}",
+                productCost, deliveryCost, fee, total);
+
+        return total.setScale(2, RoundingMode.HALF_UP);
     }
 
     private BigDecimal calculateFee(BigDecimal productCost) {
-        return productCost.multiply(new BigDecimal("0.10"))
+        BigDecimal fee = productCost.multiply(new BigDecimal("0.10"))
                 .setScale(2, RoundingMode.HALF_UP);
+        log.debug("Calculated fee (10% of ${}): ${}", productCost, fee);
+        return fee;
     }
 
     private void validateOrderForCalculation(OrderDto orderDto) {
+        log.debug("Validating order for calculation: {}", orderDto.getOrderId());
+
         if (orderDto == null) {
+            log.error("Order cannot be null");
             throw new IllegalArgumentException("Order cannot be null");
         }
 
         if (orderDto.getOrderId() == null) {
+            log.error("Order ID is required");
             throw new NotEnoughInfoInOrderToCalculateException("Order ID is required");
         }
 
         if (orderDto.getProducts() == null || orderDto.getProducts().isEmpty()) {
+            log.error("Order products cannot be empty");
             throw new NotEnoughInfoInOrderToCalculateException("Order products cannot be empty");
         }
+
+        log.debug("Order validation passed for: {}", orderDto.getOrderId());
     }
 
     @Transactional
@@ -170,13 +225,30 @@ public class PaymentService {
         log.info("Processing payment refund for payment ID: {}", paymentId);
 
         Payment payment = paymentRepository.findById(paymentId)
-                .orElseThrow(() -> new NoOrderFoundException(paymentId));
+                .orElseThrow(() -> {
+                    log.error("Payment not found for refund: {}", paymentId);
+                    return new NoOrderFoundException(paymentId);
+                });
 
-        payment.setStatus(PaymentStatus.SUCCESS);
+        // Validate payment can be refunded
+        if (payment.getStatus() != PaymentStatus.SUCCESS) {
+            log.error("Payment {} cannot be refunded, current status: {}",
+                    paymentId, payment.getStatus());
+            throw new IllegalStateException("Only SUCCESS payments can be refunded");
+        }
+
+        payment.setStatus(PaymentStatus.SUCCESS); // Keep as SUCCESS for refund tracking
         paymentRepository.save(payment);
 
-        orderPaymentClient.paymentSuccess(payment.getOrderId());
+        try {
+            orderPaymentClient.paymentSuccess(payment.getOrderId());
+            log.info("Order {} status updated for refund", payment.getOrderId());
+        } catch (Exception e) {
+            log.error("Failed to update order status for refund {}: {}", paymentId, e.getMessage(), e);
+            throw new RuntimeException("Failed to process refund", e);
+        }
 
-        log.info("Payment {} refund processed as SUCCESS", paymentId);
+        log.info("Payment {} refund processed as SUCCESS for order: {}",
+                paymentId, payment.getOrderId());
     }
 }

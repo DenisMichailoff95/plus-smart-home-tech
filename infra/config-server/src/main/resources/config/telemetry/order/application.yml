@@ -34,6 +34,15 @@ eureka:
 logging:
   level:
     ru.yandex.practicum: INFO
+    ru.yandex.practicum.service.OrderService: DEBUG
+    ru.yandex.practicum.controller: INFO
+    org.springframework.transaction: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    feign: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
 
 feign:
   client:
@@ -44,4 +53,8 @@ feign:
     warehouse:
       url: http://warehouse:${server.port}
     shopping-cart:
-        url: http://shopping-cart:${server.port}
+      url: http://shopping-cart:${server.port}
+  circuitbreaker:
+    enabled: true
+  hystrix:
+    enabled: false
