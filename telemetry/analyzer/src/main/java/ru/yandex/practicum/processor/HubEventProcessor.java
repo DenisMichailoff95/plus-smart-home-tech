@@ -6,6 +6,7 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.springframework.stereotype.Component;
+import ru.yandex.practicum.config.KafkaConfig;
 import ru.yandex.practicum.service.HubEventService;
 
 import java.time.Duration;
@@ -18,11 +19,10 @@ import java.util.Properties;
 public class HubEventProcessor implements Runnable {
 
     private final HubEventService hubEventService;
+    private final KafkaConfig kafkaConfig;
+
     private volatile boolean running = true;
     private KafkaConsumer<String, byte[]> consumer;
-
-    private static final String HUBS_TOPIC = "telemetry.hubs.v1";
-    private static final String CONSUMER_GROUP = "analyzer-hub-events";
 
     @Override
     public void run() {
@@ -30,8 +30,13 @@ public class HubEventProcessor implements Runnable {
         initializeConsumer();
 
         try {
-            consumer.subscribe(List.of(HUBS_TOPIC));
-            log.info("Subscribed to topic: {}", HUBS_TOPIC);
+            String hubsTopic = "telemetry.hubs.v1";
+            String consumerGroup = "analyzer-hub-events";
+
+            consumer.subscribe(List.of(hubsTopic));
+            log.info("Subscribed to topic: {}", hubsTopic);
+            log.info("Consumer group: {}", consumerGroup);
+            log.info("Bootstrap servers: {}", kafkaConfig.getBootstrapServers());
 
             while (running) {
                 ConsumerRecords<String, byte[]> records = consumer.poll(Duration.ofMillis(1000));
@@ -51,8 +56,8 @@ public class HubEventProcessor implements Runnable {
 
     private void initializeConsumer() {
         Properties props = new Properties();
-        props.put("bootstrap.servers", "localhost:9092");
-        props.put("group.id", CONSUMER_GROUP);
+        props.put("bootstrap.servers", kafkaConfig.getBootstrapServers());
+        props.put("group.id", "analyzer-hub-events");  // Можно использовать kafkaConfig.getConsumer().getGroupId() если настроить
         props.put("key.deserializer", "org.apache.kafka.common.serialization.StringDeserializer");
         props.put("value.deserializer", "org.apache.kafka.common.serialization.ByteArrayDeserializer");
         props.put("auto.offset.reset", "earliest");

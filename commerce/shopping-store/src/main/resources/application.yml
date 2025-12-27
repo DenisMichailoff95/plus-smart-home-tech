@@ -1,0 +1,25 @@
+spring:
+  application:
+    name: shopping-store
+  config:
+    import: "configserver:"
+  cloud:
+    config:
+      discovery:
+        enabled: true
+        serviceId: config-server
+      fail-fast: true
+      retry:
+        useRandomPolicy: true
+        max-interval: 6000
+
+logging:
+  level:
+    ru.yandex.practicum: INFO
+    ru.yandex.practicum.service.ProductService: DEBUG
+    ru.yandex.practicum.controller: INFO
+    org.springframework.data.jpa: DEBUG
+    org.hibernate.SQL: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"

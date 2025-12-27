@@ -1,0 +1,17 @@
+spring:
+  application:
+    name: aggregator
+
+  kafka:
+    bootstrap-servers: localhost:9092
+    properties:
+      security.protocol: PLAINTEXT
+
+logging:
+  level:
+    ru.yandex.practicum: INFO
+    org.apache.kafka: WARN
+    org.springframework.kafka: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+

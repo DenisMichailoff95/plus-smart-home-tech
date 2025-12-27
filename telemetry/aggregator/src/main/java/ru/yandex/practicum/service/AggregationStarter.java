@@ -13,6 +13,7 @@ import org.apache.kafka.clients.producer.Producer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.errors.WakeupException;
 import org.springframework.stereotype.Component;
+import ru.yandex.practicum.config.KafkaConfig;
 import ru.yandex.practicum.deserializer.SensorEventDeserializer;
 import ru.yandex.practicum.kafka.telemetry.event.SensorEventAvro;
 import ru.yandex.practicum.kafka.telemetry.event.SensorsSnapshotAvro;
@@ -29,10 +30,7 @@ public class AggregationStarter {
 
     private final SnapshotAggregationService aggregationService;
     private final SnapshotMapperService snapshotMapperService;
-
-    private static final String SENSORS_TOPIC = "telemetry.sensors.v1";
-    private static final String SNAPSHOTS_TOPIC = "telemetry.snapshots.v1";
-    private static final String CONSUMER_GROUP = "aggregator-group";
+    private final KafkaConfig kafkaConfig;
 
     private volatile boolean running = true;
     private Consumer<String, SensorEventAvro> consumer;
@@ -44,10 +42,14 @@ public class AggregationStarter {
         initializeKafkaClients();
 
         try {
-            consumer.subscribe(List.of(SENSORS_TOPIC));
-            log.info("Subscribed to topic: {}", SENSORS_TOPIC);
-            log.info("Consumer group: {}", CONSUMER_GROUP);
-            log.info("Will produce snapshots to topic: {}", SNAPSHOTS_TOPIC);
+            String sensorsTopic = kafkaConfig.getSensorsTopic();
+            String snapshotsTopic = kafkaConfig.getSnapshotsTopic();
+            String consumerGroup = kafkaConfig.getConsumerGroup();
+
+            consumer.subscribe(List.of(sensorsTopic));
+            log.info("Subscribed to topic: {}", sensorsTopic);
+            log.info("Consumer group: {}", consumerGroup);
+            log.info("Will produce snapshots to topic: {}", snapshotsTopic);
 
             while (running) {
                 try {
@@ -94,8 +96,8 @@ public class AggregationStarter {
 
     private void initializeKafkaClients() {
         Properties consumerProps = new Properties();
-        consumerProps.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
-        consumerProps.put(ConsumerConfig.GROUP_ID_CONFIG, CONSUMER_GROUP);
+        consumerProps.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaConfig.getBootstrapServers());
+        consumerProps.put(ConsumerConfig.GROUP_ID_CONFIG, kafkaConfig.getConsumerGroup());
         consumerProps.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG,
                 "org.apache.kafka.common.serialization.StringDeserializer");
         consumerProps.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG,
@@ -105,7 +107,7 @@ public class AggregationStarter {
         consumerProps.put(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, "100");
 
         Properties producerProps = new Properties();
-        producerProps.put("bootstrap.servers", "localhost:9092");
+        producerProps.put("bootstrap.servers", kafkaConfig.getBootstrapServers());
         producerProps.put("key.serializer",
                 "org.apache.kafka.common.serialization.StringSerializer");
         producerProps.put("value.serializer",
@@ -116,7 +118,8 @@ public class AggregationStarter {
         consumer = new KafkaConsumer<>(consumerProps);
         producer = new KafkaProducer<>(producerProps);
 
-        log.info("Kafka clients initialized successfully");
+        log.info("Kafka clients initialized successfully with bootstrap servers: {}",
+                kafkaConfig.getBootstrapServers());
     }
 
     private void processRecords(ConsumerRecords<String, SensorEventAvro> records) {
@@ -151,14 +154,13 @@ public class AggregationStarter {
     private void sendSnapshotToKafka(SensorsSnapshotAvro snapshot) {
         try {
             byte[] snapshotBytes = snapshotMapperService.snapshotToAvroBytes(snapshot);
-
             ProducerRecord<String, byte[]> snapshotRecord =
-                    new ProducerRecord<>(SNAPSHOTS_TOPIC, snapshot.getHubId(), snapshotBytes);
+                    new ProducerRecord<>(kafkaConfig.getSnapshotsTopic(), snapshot.getHubId(), snapshotBytes);
 
             producer.send(snapshotRecord, (metadata, exception) -> {
                 if (exception != null) {
                     log.error("Failed to send snapshot for hub: {} to topic: {}",
-                            snapshot.getHubId(), SNAPSHOTS_TOPIC, exception);
+                            snapshot.getHubId(), kafkaConfig.getSnapshotsTopic(), exception);
                 } else {
                     log.debug("Snapshot sent for hub: {} to topic: {}, partition: {}, offset: {}",
                             snapshot.getHubId(), metadata.topic(),
