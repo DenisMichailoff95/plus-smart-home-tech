@@ -8,7 +8,7 @@ import ru.yandex.practicum.dto.payment.PaymentDto;
 
 import java.math.BigDecimal;
 
-@FeignClient(name = "payment", contextId = "orderPaymentClient", url = "${feign.client.payment.url}")
+@FeignClient(name = "payment")
 public interface PaymentServiceClient {
 
     @PostMapping("/api/v1/payment/productCost")

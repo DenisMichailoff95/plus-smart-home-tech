@@ -10,7 +10,7 @@ import ru.yandex.practicum.dto.warehouse.BookedProductsDto;
 
 import java.util.Map;
 
-@FeignClient(name = "warehouse", contextId = "orderWarehouseClient", url = "${feign.client.warehouse.url}")
+@FeignClient(name = "warehouse")
 public interface WarehouseServiceClient {
 
     @PostMapping("/api/v1/warehouse/assembly")

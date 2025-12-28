@@ -14,6 +14,7 @@ import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.ToString;
 import ru.yandex.practicum.dto.order.OrderState;
 
 import java.math.BigDecimal;
@@ -26,6 +27,7 @@ import java.util.UUID;
 @Table(name = "orders", schema = "order_schema")
 @Getter
 @Setter
+@ToString
 public class Order {
 
     @Id
@@ -36,7 +38,7 @@ public class Order {
     private UUID shoppingCartId;
 
     @Column(nullable = false)
-    private String username;  // ДОБАВЛЕНО: для связи заказа с пользователем (расширение спецификации)
+    private String username;
 
     @Column
     private UUID paymentId;

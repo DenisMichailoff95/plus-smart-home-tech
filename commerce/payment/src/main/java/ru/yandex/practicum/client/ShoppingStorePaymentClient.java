@@ -7,7 +7,7 @@ import ru.yandex.practicum.dto.shoppingstore.ProductDto;
 
 import java.util.UUID;
 
-@FeignClient(name = "shopping-store", contextId = "paymentShoppingStoreClient", url = "${feign.client.shopping-store.url}")
+@FeignClient(name = "shopping-store") // Убрали фиксированный URL, используем Service Discovery
 public interface ShoppingStorePaymentClient {
 
     @GetMapping("/api/v1/shopping-store/{productId}")

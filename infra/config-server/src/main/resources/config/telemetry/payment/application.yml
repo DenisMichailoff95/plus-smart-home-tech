@@ -34,10 +34,3 @@ eureka:
 logging:
   level:
     ru.yandex.practicum: INFO
-
-feign:
-  client:
-    order:
-      url: http://order:${server.port}
-    shopping-store:
-      url: http://shopping-store:${server.port}

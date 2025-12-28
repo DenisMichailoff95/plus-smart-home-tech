@@ -10,4 +10,3 @@ public interface ShoppingCartClient {
     @GetMapping("/api/v1/shopping-cart")
     ShoppingCartDto getShoppingCart(@RequestParam("username") String username);
 }
-

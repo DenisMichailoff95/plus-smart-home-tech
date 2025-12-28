@@ -45,10 +45,3 @@ logging:
     ru.yandex.practicum: INFO
     # для отладки Eureka
     org.springframework.cloud.netflix.eureka: INFO
-
-feign:
-  client:
-    order:
-      url: http://order:${server.port}
-    warehouse:
-      url: http://warehouse:${server.port}

@@ -5,7 +5,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import ru.yandex.practicum.dto.warehouse.ShippedToDeliveryRequest;
 
-@FeignClient(name = "warehouse", contextId = "deliveryWarehouseClient", url = "${feign.client.warehouse.url}")
+@FeignClient(name = "warehouse")
 public interface WarehouseDeliveryClient {
 
     @PostMapping("/api/v1/warehouse/shipped")

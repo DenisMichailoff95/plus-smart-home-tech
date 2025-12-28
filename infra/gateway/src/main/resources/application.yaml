@@ -20,7 +20,9 @@ spring:
     # Настройки LoadBalancer и HTTP клиента
     loadbalancer:
       useServiceDiscovery: true
-    gateway:
+      discovery:
+        locator:
+          enabled: false
       httpclient:
         connect-timeout: 1000
         response-timeout: 5s

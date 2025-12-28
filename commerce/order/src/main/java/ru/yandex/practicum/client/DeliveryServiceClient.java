@@ -9,7 +9,7 @@ import ru.yandex.practicum.dto.order.OrderDto;
 
 import java.math.BigDecimal;
 
-@FeignClient(name = "delivery", contextId = "orderDeliveryClient", url = "${feign.client.delivery.url}")
+@FeignClient(name = "delivery")
 public interface DeliveryServiceClient {
 
     @PutMapping("/api/v1/delivery")
