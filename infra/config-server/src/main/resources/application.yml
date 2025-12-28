@@ -1,26 +1,69 @@
 spring:
   application:
-    name: config-server
-  profiles:
-    active: native
+    name: gateway
+  config:
+    import: "configserver:"
   cloud:
     config:
+      # не загружать другие компоненты до получения конфигурации
       fail-fast: true
-      server:
-        native:
-          searchLocations:
-            - classpath:config/telemetry/{application}
-            - classpath:config/infra/{application}
-            - classpath:config/commerce/{application}
-server:
-  port: 0
+      # если config-server недоступен, нужно сделать несколько попыток подключиться
+      retry:
+        # используем случайный backoff между попытками
+        useRandomPolicy: true
+        # максимальный интервал, в течение которого делаем попытки (6000 миллисекунд = 6 сек)
+        max-interval: 6000
+      discovery:
+        enabled: true
+        serviceId: config-server
+
+    # Настройки LoadBalancer и HTTP клиента
+    loadbalancer:
+      useServiceDiscovery: true
+      discovery:
+        locator:
+          enabled: false
+      httpclient:
+        connect-timeout: 1000
+        response-timeout: 5s
+        pool:
+          type: fixed
+          max-connections: 100
+          acquire-timeout: 10000
 
 eureka:
   client:
     serviceUrl:
-      defaultZone: http://${eureka.instance.hostname:localhost}:${eureka.instance.port:8761}/eureka/
-    initial-instance-info-replication-interval-seconds: 5
-    registry-fetch-interval-seconds: 5
+      defaultZone: http://localhost:8761/eureka/
   instance:
-    lease-renewal-interval-in-seconds: 5
-    lease-expiration-duration-in-seconds: 10
+    preferIpAddress: true
+    hostname: localhost
+    instance-id: "${spring.application.name}:${random.value}"
+    leaseRenewalIntervalInSeconds: 10
+
+# Активация actuator endpoints
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,gateway,routes,routefilters
+  endpoint:
+    gateway:
+      enabled: true
+
+# Примеры тестовых эндпоинтов для проверки маршрутизации
+# 1. Доступ к delivery service:
+#    Запрос: POST http://localhost:8080/delivery/cost
+#    Преобразуется в: POST http://DELIVERY/api/v1/delivery/cost
+#
+# 2. Доступ к shopping cart:
+#    Запрос: GET http://localhost:8080/shopping-cart?username=test
+#    Преобразуется в: GET http://SHOPPING-CART/api/v1/shopping-cart?username=test
+#
+# 3. Доступ к order service:
+#    Запрос: POST http://localhost:8080/order/return
+#    Преобразуется в: POST http://ORDER/api/v1/order/return
+#
+# 4. Доступ к warehouse:
+#    Запрос: POST http://localhost:8080/warehouse/check
+#    Преобразуется в: POST http://WAREHOUSE/api/v1/warehouse/check

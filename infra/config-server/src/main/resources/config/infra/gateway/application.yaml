@@ -7,38 +7,49 @@ spring:
         - id: shopping_cart_service_route
           uri: lb://SHOPPING-CART
           predicates:
-            - Path=/api/v1/shopping-cart/**
+            - Path=/shopping-cart/**, /shopping-cart
+          filters:
+            - RewritePath=/shopping-cart/?(?<segment>.*), /api/v1/shopping-cart/$\{segment}
 
         # Shopping Store
         - id: shopping_store_service_route
           uri: lb://SHOPPING-STORE
           predicates:
-            - Path=/api/v1/shopping-store/**
+            - Path=/shopping-store/**, /shopping-store
+          filters:
+            - RewritePath=/shopping-store/?(?<segment>.*), /api/v1/shopping-store/$\{segment}
 
         # Warehouse
         - id: warehouse_service_route
           uri: lb://WAREHOUSE
           predicates:
-            - Path=/api/v1/warehouse/**
+            - Path=/warehouse/**, /warehouse
+          filters:
+            - RewritePath=/warehouse/?(?<segment>.*), /api/v1/warehouse/$\{segment}
 
         # Order
         - id: order_service_main_route
           uri: lb://ORDER
           predicates:
-            - Path=/api/v1/order/**
-
+            - Path=/order/**, /order
+          filters:
+            - RewritePath=/order/?(?<segment>.*), /api/v1/order/$\{segment}
 
         # Payment
         - id: payment_service_route
           uri: lb://PAYMENT
           predicates:
-            - Path=/api/v1/payment/**
+            - Path=/payment/**, /payment
+          filters:
+            - RewritePath=/payment/?(?<segment>.*), /api/v1/payment/$\{segment}
 
         # Delivery
         - id: delivery_service_route
           uri: lb://DELIVERY
           predicates:
-            - Path=/api/v1/delivery/**
+            - Path=/delivery/**, /delivery
+          filters:
+            - RewritePath=/delivery/?(?<segment>.*), /api/v1/delivery/$\{segment}
 
 server:
   port: 8080
@@ -50,7 +61,7 @@ eureka:
   instance:
     preferIpAddress: true
 
-#  Активация actuator endpoints
+# Активация actuator endpoints
 management:
   endpoints:
     web:
