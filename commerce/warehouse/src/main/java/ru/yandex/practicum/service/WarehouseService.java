@@ -5,18 +5,16 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import ru.yandex.practicum.dto.shoppingcart.ShoppingCartDto;
-import ru.yandex.practicum.dto.warehouse.AddProductToWarehouseRequest;
-import ru.yandex.practicum.dto.warehouse.AddressDto;
-import ru.yandex.practicum.dto.warehouse.BookedProductsDto;
-import ru.yandex.practicum.dto.warehouse.NewProductInWarehouseRequest;
-import ru.yandex.practicum.entity.WarehouseAddress;
+import ru.yandex.practicum.dto.warehouse.*;
+import ru.yandex.practicum.entity.OrderBooking;
 import ru.yandex.practicum.entity.WarehouseItem;
+import ru.yandex.practicum.exception.ProductInShoppingCartLowQuantityInWarehouseException;
+import ru.yandex.practicum.exception.ProductInShoppingCartNotInWarehouseException;
+import ru.yandex.practicum.exception.SpecifiedProductAlreadyInWarehouseException;
 import ru.yandex.practicum.exception.WarehouseItemNotFoundException;
-import ru.yandex.practicum.mapper.WarehouseMapper;
-import ru.yandex.practicum.repository.WarehouseAddressRepository;
+import ru.yandex.practicum.repository.OrderBookingRepository;
 import ru.yandex.practicum.repository.WarehouseItemRepository;
 
-import jakarta.annotation.PostConstruct;
 import java.util.Map;
 import java.util.UUID;
 
@@ -27,217 +25,183 @@ import java.util.UUID;
 public class WarehouseService {
 
     private final WarehouseItemRepository warehouseItemRepository;
-    private final WarehouseAddressRepository warehouseAddressRepository;
-    private final WarehouseMapper warehouseMapper;
-
-    private WarehouseAddress warehouseAddress; // Кэшируем адрес при инициализации
-
-    @PostConstruct
-    public void init() {
-        initializeWarehouseAddress();
-    }
-
-    private void initializeWarehouseAddress() {
-        log.info("[WarehouseService] Initializing warehouse address...");
-
-        // Пытаемся найти существующий адрес в базе данных
-        if (warehouseAddressRepository.count() > 0) {
-            warehouseAddress = warehouseAddressRepository.findAll().get(0);
-            log.info("[WarehouseService] Using existing warehouse address from database: {}",
-                    warehouseAddress.getStreet());
-        } else {
-            // Создаем случайный адрес при инициализации
-            warehouseAddress = createRandomAddress();
-            warehouseAddressRepository.save(warehouseAddress);
-            log.info("[WarehouseService] Created new random warehouse address: {}",
-                    warehouseAddress.getStreet());
-        }
-
-        log.debug("[WarehouseService] Warehouse address initialized: country={}, city={}, street={}",
-                warehouseAddress.getCountry(), warehouseAddress.getCity(), warehouseAddress.getStreet());
-    }
-
-    private WarehouseAddress createRandomAddress() {
-        WarehouseAddress address = new WarehouseAddress();
-        String addressValue = Math.random() > 0.5 ? "ADDRESS_1" : "ADDRESS_2";
-        address.setCountry(addressValue);
-        address.setCity(addressValue);
-        address.setStreet(addressValue);
-        address.setHouse(addressValue);
-        address.setFlat(addressValue);
-        return address;
-    }
+    private final OrderBookingRepository orderBookingRepository;
 
     @Transactional
     public void addNewProduct(NewProductInWarehouseRequest request) {
-        log.info("[WarehouseService] Adding new product to warehouse inventory: {}", request.getProductId());
-        log.debug("[WarehouseService] Product details: dimensions={}, weight={}, fragile={}",
-                request.getDimension(), request.getWeight(), request.getFragile());
+        log.info("Adding new product to warehouse: {}", request.getProductId());
 
-        long startTime = System.currentTimeMillis();
-        try {
-            if (warehouseItemRepository.findByProductId(request.getProductId()).isPresent()) {
-                log.error("[WarehouseService] Product already exists in warehouse: {}", request.getProductId());
-                throw new IllegalArgumentException("Product already exists in warehouse: " + request.getProductId());
-            }
-
-            WarehouseItem item = new WarehouseItem();
-            item.setProductId(request.getProductId());
-            item.setQuantity(0);
-            log.debug("[WarehouseService] Initialized warehouse item with zero quantity");
-
-            if (request.getDimension() != null) {
-                item.setWidth(request.getDimension().getWidth());
-                item.setHeight(request.getDimension().getHeight());
-                item.setDepth(request.getDimension().getDepth());
-                log.debug("[WarehouseService] Dimensions set: width={}, height={}, depth={}",
-                        item.getWidth(), item.getHeight(), item.getDepth());
-            }
-
-            item.setWeight(request.getWeight());
-            item.setFragile(request.getFragile() != null ? request.getFragile() : false);
-
-            log.debug("[WarehouseService] Final item state before save: {}", item);
-
-            warehouseItemRepository.save(item);
-
-            long duration = System.currentTimeMillis() - startTime;
-            log.info("[WarehouseService] New product added to warehouse successfully in {} ms", duration);
-        } catch (Exception e) {
-            log.error("[WarehouseService] Error adding new product: {}", request.getProductId(), e);
-            throw e;
+        if (warehouseItemRepository.findByProductId(request.getProductId()).isPresent()) {
+            throw new SpecifiedProductAlreadyInWarehouseException();
         }
+
+        WarehouseItem item = new WarehouseItem();
+        item.setProductId(request.getProductId());
+        item.setQuantity(0);
+
+        if (request.getDimension() != null) {
+            item.setWidth(request.getDimension().getWidth());
+            item.setHeight(request.getDimension().getHeight());
+            item.setDepth(request.getDimension().getDepth());
+        }
+
+        item.setWeight(request.getWeight());
+        item.setFragile(request.getFragile() != null ? request.getFragile() : false);
+
+        warehouseItemRepository.save(item);
+        log.info("New product added to warehouse: {}", request.getProductId());
     }
 
-    public BookedProductsDto checkProductAvailability(ShoppingCartDto shoppingCart) {
-        log.info("[WarehouseService] Checking product availability for shopping cart: {}",
-                shoppingCart.getShoppingCartId());
-        log.debug("[WarehouseService] Cart contains {} products", shoppingCart.getProducts().size());
+    public BookedProductsDto checkProductQuantityEnoughForShoppingCart(ShoppingCartDto shoppingCart) {
+        log.info("Checking product availability for shopping cart: {}", shoppingCart.getShoppingCartId());
 
-        long startTime = System.currentTimeMillis();
-        try {
-            Double totalVolume = 0.0;
-            Double totalWeight = 0.0;
-            Boolean hasFragile = false;
-            int checkedProducts = 0;
+        Double totalVolume = 0.0;
+        Double totalWeight = 0.0;
+        Boolean hasFragile = false;
 
-            for (Map.Entry<String, Integer> entry : shoppingCart.getProducts().entrySet()) {
-                UUID productId;
-                try {
-                    productId = UUID.fromString(entry.getKey());
-                    log.debug("[WarehouseService] Checking product: {}, quantity: {}",
-                            productId, entry.getValue());
-                } catch (IllegalArgumentException e) {
-                    log.warn("[WarehouseService] Invalid product ID format: {}, skipping", entry.getKey());
-                    continue;
-                }
+        for (Map.Entry<String, Integer> entry : shoppingCart.getProducts().entrySet()) {
+            UUID productId = UUID.fromString(entry.getKey());
+            Integer requestedQuantity = entry.getValue();
 
-                Integer requestedQuantity = entry.getValue();
-                checkedProducts++;
+            WarehouseItem item = warehouseItemRepository.findByProductId(productId)
+                    .orElseThrow(() -> new ProductInShoppingCartNotInWarehouseException());
 
-                WarehouseItem item = warehouseItemRepository.findByProductId(productId)
-                        .orElseThrow(() -> {
-                            log.error("[WarehouseService] Product not found in warehouse: {}", productId);
-                            return new WarehouseItemNotFoundException(productId);
-                        });
-
-                if (item.getQuantity() < requestedQuantity) {
-                    log.error("[WarehouseService] Insufficient stock for product: {}. Available: {}, Requested: {}",
-                            productId, item.getQuantity(), requestedQuantity);
-                    throw new IllegalArgumentException("Insufficient stock for product: " + productId +
-                            " (available: " + item.getQuantity() +
-                            ", requested: " + requestedQuantity + ")");
-                }
-
-                log.debug("[WarehouseService] Product {} available. Stock: {}",
-                        productId, item.getQuantity());
-
-                if (item.getWidth() != null && item.getHeight() != null && item.getDepth() != null) {
-                    Double volume = item.getWidth().doubleValue() * item.getHeight().doubleValue() * item.getDepth().doubleValue();
-                    totalVolume += volume * requestedQuantity;
-                    log.debug("[WarehouseService] Product volume: {} m³", volume);
-                }
-
-                if (item.getWeight() != null) {
-                    totalWeight += item.getWeight().doubleValue() * requestedQuantity;
-                    log.debug("[WarehouseService] Product weight: {} kg", item.getWeight());
-                }
-
-                if (item.getFragile() != null && item.getFragile()) {
-                    hasFragile = true;
-                    log.debug("[WarehouseService] Product marked as fragile");
-                }
+            if (item.getQuantity() < requestedQuantity) {
+                throw new ProductInShoppingCartLowQuantityInWarehouseException();
             }
 
-            BookedProductsDto result = new BookedProductsDto(totalVolume, totalWeight, hasFragile);
+            totalVolume += calculateVolume(item) * requestedQuantity;
+            totalWeight += item.getWeight().doubleValue() * requestedQuantity;
 
-            long duration = System.currentTimeMillis() - startTime;
-            log.info("[WarehouseService] Availability check completed. Products checked: {}, Time: {} ms",
-                    checkedProducts, duration);
-            log.debug("[WarehouseService] Booking details - Volume: {} m³, Weight: {} kg, Fragile: {}",
-                    totalVolume, totalWeight, hasFragile);
-
-            return result;
-        } catch (Exception e) {
-            log.error("[WarehouseService] Error checking product availability for cart: {}",
-                    shoppingCart.getShoppingCartId(), e);
-            throw e;
+            if (item.getFragile() != null && item.getFragile()) {
+                hasFragile = true;
+            }
         }
+
+        return new BookedProductsDto(totalVolume, totalWeight, hasFragile);
+    }
+
+    @Transactional
+    public BookedProductsDto assemblyProductsForOrder(AssemblyProductsForOrderRequest request) {
+        log.info("Assembling products for order: {}", request.getOrderId());
+
+        Double totalVolume = 0.0;
+        Double totalWeight = 0.0;
+        Boolean hasFragile = false;
+
+        for (Map.Entry<String, Integer> entry : request.getProducts().entrySet()) {
+            UUID productId = UUID.fromString(entry.getKey());
+            Integer requestedQuantity = entry.getValue();
+
+            WarehouseItem item = warehouseItemRepository.findByProductId(productId)
+                    .orElseThrow(() -> new ProductInShoppingCartNotInWarehouseException());
+
+            if (item.getQuantity() < requestedQuantity) {
+                throw new ProductInShoppingCartLowQuantityInWarehouseException();
+            }
+
+            item.setQuantity(item.getQuantity() - requestedQuantity);
+            warehouseItemRepository.save(item);
+
+            totalVolume += calculateVolume(item) * requestedQuantity;
+            totalWeight += item.getWeight().doubleValue() * requestedQuantity;
+
+            if (item.getFragile() != null && item.getFragile()) {
+                hasFragile = true;
+            }
+        }
+
+        OrderBooking orderBooking = new OrderBooking();
+        orderBooking.setOrderId(request.getOrderId());
+        orderBooking.setCompleted(false);
+        orderBookingRepository.save(orderBooking);
+
+        log.info("Products assembled for order: {}, booking ID: {}",
+                request.getOrderId(), orderBooking.getOrderBookingId());
+
+        return new BookedProductsDto(totalVolume, totalWeight, hasFragile);
     }
 
     @Transactional
     public void addProductQuantity(AddProductToWarehouseRequest request) {
-        log.info("[WarehouseService] Adding quantity to existing product: {}, quantity: {}",
+        log.info("Adding quantity to product: {}, quantity: {}",
                 request.getProductId(), request.getQuantity());
 
-        long startTime = System.currentTimeMillis();
-        try {
-            WarehouseItem item = warehouseItemRepository.findByProductId(request.getProductId())
-                    .orElseThrow(() -> {
-                        log.error("[WarehouseService] Product not found for quantity addition: {}",
-                                request.getProductId());
-                        return new WarehouseItemNotFoundException(request.getProductId());
-                    });
+        WarehouseItem item = warehouseItemRepository.findByProductId(request.getProductId())
+                .orElseThrow(() -> new WarehouseItemNotFoundException(request.getProductId()));
 
-            int oldQuantity = item.getQuantity();
-            item.setQuantity(item.getQuantity() + request.getQuantity().intValue());
-            warehouseItemRepository.save(item);
+        item.setQuantity(item.getQuantity() + request.getQuantity().intValue());
+        warehouseItemRepository.save(item);
 
-            long duration = System.currentTimeMillis() - startTime;
-            log.info("[WarehouseService] Quantity updated for product: {}. Old: {}, New: {}, Time: {} ms",
-                    request.getProductId(), oldQuantity, item.getQuantity(), duration);
-        } catch (Exception e) {
-            log.error("[WarehouseService] Error adding quantity to product: {}",
-                    request.getProductId(), e);
-            throw e;
-        }
+        log.info("Quantity updated for product: {}, new quantity: {}",
+                request.getProductId(), item.getQuantity());
+    }
+
+    @Transactional
+    public void shippedToDelivery(ShippedToDeliveryRequest request) {
+        log.info("Shipping order {} to delivery {}", request.getOrderId(), request.getDeliveryId());
+
+        OrderBooking orderBooking = orderBookingRepository.findByOrderId(request.getOrderId())
+                .orElseThrow(() -> new IllegalArgumentException("Order booking not found for order: " + request.getOrderId()));
+
+        orderBooking.setDeliveryId(request.getDeliveryId());
+        orderBooking.setCompleted(true);
+        orderBookingRepository.save(orderBooking);
+
+        log.info("Order {} shipped to delivery {}", request.getOrderId(), request.getDeliveryId());
     }
 
     public AddressDto getWarehouseAddress() {
-        log.info("[WarehouseService] Retrieving warehouse address");
+        log.info("Getting warehouse address");
 
-        long startTime = System.currentTimeMillis();
         try {
-            // Теперь используем заранее инициализированный адрес
-            AddressDto address = warehouseMapper.toDto(warehouseAddress);
+            String addressValue = Math.random() > 0.5 ? "ADDRESS_1" : "ADDRESS_2";
 
-            long duration = System.currentTimeMillis() - startTime;
-            log.info("[WarehouseService] Address retrieved in {} ms", duration);
-            log.debug("[WarehouseService] Address details: {}", address);
+            AddressDto address = new AddressDto();
+            address.setCountry(addressValue);
+            address.setCity(addressValue);
+            address.setStreet(addressValue);
+            address.setHouse(addressValue);
+            address.setFlat(addressValue);
 
             return address;
-        } catch (Exception e) {
-            log.error("[WarehouseService] Error retrieving warehouse address", e);
 
+        } catch (Exception e) {
+            log.error("Error getting warehouse address: {}", e.getMessage(), e);
             AddressDto defaultAddress = new AddressDto();
             defaultAddress.setCountry("ADDRESS_1");
             defaultAddress.setCity("ADDRESS_1");
             defaultAddress.setStreet("ADDRESS_1");
             defaultAddress.setHouse("ADDRESS_1");
             defaultAddress.setFlat("ADDRESS_1");
-
-            log.warn("[WarehouseService] Returning default address due to error");
             return defaultAddress;
+        }
+    }
+
+    private Double calculateVolume(WarehouseItem item) {
+        if (item.getWidth() != null && item.getHeight() != null && item.getDepth() != null) {
+            return item.getWidth().doubleValue() *
+                    item.getHeight().doubleValue() *
+                    item.getDepth().doubleValue();
+        }
+        return 0.0;
+    }
+
+    @Transactional
+    public void acceptReturn(Map<String, Integer> products) {
+        log.info("Accepting return of products: {}", products);
+
+        for (Map.Entry<String, Integer> entry : products.entrySet()) {
+            UUID productId = UUID.fromString(entry.getKey());
+            Integer returnedQuantity = entry.getValue();
+
+            WarehouseItem item = warehouseItemRepository.findByProductId(productId)
+                    .orElseThrow(() -> new WarehouseItemNotFoundException(productId));
+
+            item.setQuantity(item.getQuantity() + returnedQuantity);
+            warehouseItemRepository.save(item);
+
+            log.info("Returned {} units of product {}", returnedQuantity, productId);
         }
     }
 }

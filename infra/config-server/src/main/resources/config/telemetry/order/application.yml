@@ -1,0 +1,50 @@
+spring:
+  application:
+    name: order
+  datasource:
+    url: jdbc:postgresql://localhost:5432/analyzer
+    username: postgres
+    password: postgres
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: create
+    show-sql: true
+    properties:
+      hibernate:
+        default_schema: order_schema
+        format_sql: true
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:schema.sql
+
+server:
+  port: 0
+
+eureka:
+  instance:
+    prefer-ip-address: true
+    hostname: ${spring.cloud.client.ip-address}
+    ip-address: ${spring.cloud.client.ip-address}
+  client:
+    serviceUrl:
+      defaultZone: http://${eureka.instance.hostname:localhost}:${eureka.instance.port:8761}/eureka/
+
+logging:
+  level:
+    ru.yandex.practicum: INFO
+    ru.yandex.practicum.service.OrderService: DEBUG
+    ru.yandex.practicum.controller: INFO
+    org.springframework.transaction: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    feign: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+
+  circuitbreaker:
+    enabled: true
+  hystrix:
+    enabled: false

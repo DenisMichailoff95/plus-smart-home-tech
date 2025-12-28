@@ -1,0 +1,52 @@
+spring:
+  application:
+    name: gateway
+  config:
+    import: "configserver:"
+  cloud:
+    config:
+      # не загружать другие компоненты до получения конфигурации
+      fail-fast: true
+      # если config-server недоступен, нужно сделать несколько попыток подключиться
+      retry:
+        # используем случайный backoff между попытками
+        useRandomPolicy: true
+        # максимальный интервал, в течение которого делаем попытки (6000 миллисекунд = 6 сек)
+        max-interval: 6000
+      discovery:
+        enabled: true
+        serviceId: config-server
+
+    # Настройки LoadBalancer и HTTP клиента
+    loadbalancer:
+      useServiceDiscovery: true
+      discovery:
+        locator:
+          enabled: false
+      httpclient:
+        connect-timeout: 1000
+        response-timeout: 5s
+        pool:
+          type: fixed
+          max-connections: 100
+          acquire-timeout: 10000
+
+eureka:
+  client:
+    serviceUrl:
+      defaultZone: http://localhost:8761/eureka/
+  instance:
+    preferIpAddress: true
+    hostname: localhost
+    instance-id: "${spring.application.name}:${random.value}"
+    leaseRenewalIntervalInSeconds: 10
+
+# Активация actuator endpoints
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,gateway,routes,routefilters
+  endpoint:
+    gateway:
+      enabled: true

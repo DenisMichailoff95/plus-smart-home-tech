@@ -1,0 +1,72 @@
+spring:
+  cloud:
+    gateway:
+      discovery.locator.enabled: false
+      routes:
+        # Shopping Cart
+        - id: shopping_cart_service_route
+          uri: lb://SHOPPING-CART
+          predicates:
+            - Path=/shopping-cart/**, /shopping-cart
+          filters:
+            - RewritePath=/shopping-cart/?(?<segment>.*), /api/v1/shopping-cart/$\{segment}
+
+        # Shopping Store
+        - id: shopping_store_service_route
+          uri: lb://SHOPPING-STORE
+          predicates:
+            - Path=/shopping-store/**, /shopping-store
+          filters:
+            - RewritePath=/shopping-store/?(?<segment>.*), /api/v1/shopping-store/$\{segment}
+
+        # Warehouse
+        - id: warehouse_service_route
+          uri: lb://WAREHOUSE
+          predicates:
+            - Path=/warehouse/**, /warehouse
+          filters:
+            - RewritePath=/warehouse/?(?<segment>.*), /api/v1/warehouse/$\{segment}
+
+        # Order
+        - id: order_service_main_route
+          uri: lb://ORDER
+          predicates:
+            - Path=/order/**, /order
+          filters:
+            - RewritePath=/order/?(?<segment>.*), /api/v1/order/$\{segment}
+
+        # Payment
+        - id: payment_service_route
+          uri: lb://PAYMENT
+          predicates:
+            - Path=/payment/**, /payment
+          filters:
+            - RewritePath=/payment/?(?<segment>.*), /api/v1/payment/$\{segment}
+
+        # Delivery
+        - id: delivery_service_route
+          uri: lb://DELIVERY
+          predicates:
+            - Path=/delivery/**, /delivery
+          filters:
+            - RewritePath=/delivery/?(?<segment>.*), /api/v1/delivery/$\{segment}
+
+server:
+  port: 8080
+
+eureka:
+  client:
+    serviceUrl:
+      defaultZone: http://localhost:8761/eureka/
+  instance:
+    preferIpAddress: true
+
+# Активация actuator endpoints
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,gateway,routes,routefilters
+  endpoint:
+    gateway:
+      enabled: true
