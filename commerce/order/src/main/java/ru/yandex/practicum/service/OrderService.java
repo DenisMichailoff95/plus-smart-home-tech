@@ -202,8 +202,8 @@ public class OrderService {
 
         // Validate payment transition
         if (order.getState() != OrderState.ON_PAYMENT) {
-            log.warn("Order {} payment success received but order is in state: {}",
-                    orderId, order.getState());
+            log.error("Order {} cannot transition to PAID, current state: {}", orderId, order.getState());
+            throw new IllegalStateException("Only orders in ON_PAYMENT state can transition to PAID");
         }
 
         order.setState(OrderState.PAID);
@@ -240,6 +240,12 @@ public class OrderService {
         Order order = orderRepository.findByIdWithItems(orderId)
                 .orElseThrow(() -> new NoOrderFoundException(orderId));
 
+        // Validate payment failed transition
+        if (order.getState() != OrderState.ON_PAYMENT) {
+            log.error("Order {} cannot transition to PAYMENT_FAILED, current state: {}", orderId, order.getState());
+            throw new IllegalStateException("Only orders in ON_PAYMENT state can transition to PAYMENT_FAILED");
+        }
+
         order.setState(OrderState.PAYMENT_FAILED);
         Order savedOrder = orderRepository.save(order);
 
@@ -254,10 +260,10 @@ public class OrderService {
         Order order = orderRepository.findByIdWithItems(orderId)
                 .orElseThrow(() -> new NoOrderFoundException(orderId));
 
-        // Validate delivery transition
-        if (order.getState() != OrderState.ASSEMBLED && order.getState() != OrderState.PAID) {
-            log.warn("Order {} delivery received but order is in state: {}",
-                    orderId, order.getState());
+        // Validate delivery transition - строгая валидация как рекомендует ревьюер
+        if (order.getState() != OrderState.ASSEMBLED) {
+            log.error("Order {} cannot transition to DELIVERED, current state: {}", orderId, order.getState());
+            throw new IllegalStateException("Only ASSEMBLED orders can transition to DELIVERED");
         }
 
         order.setState(OrderState.DELIVERED);
@@ -273,6 +279,12 @@ public class OrderService {
 
         Order order = orderRepository.findByIdWithItems(orderId)
                 .orElseThrow(() -> new NoOrderFoundException(orderId));
+
+        // Validate delivery failed transition
+        if (order.getState() != OrderState.ASSEMBLED) {
+            log.error("Order {} cannot transition to DELIVERY_FAILED, current state: {}", orderId, order.getState());
+            throw new IllegalStateException("Only ASSEMBLED orders can transition to DELIVERY_FAILED");
+        }
 
         order.setState(OrderState.DELIVERY_FAILED);
         Order savedOrder = orderRepository.save(order);
@@ -320,6 +332,12 @@ public class OrderService {
 
         Order order = orderRepository.findByIdWithItems(orderId)
                 .orElseThrow(() -> new NoOrderFoundException(orderId));
+
+        // Validate assembly failed transition
+        if (order.getState() != OrderState.PAID) {
+            log.error("Order {} cannot transition to ASSEMBLY_FAILED, current state: {}", orderId, order.getState());
+            throw new IllegalStateException("Only PAID orders can transition to ASSEMBLY_FAILED");
+        }
 
         order.setState(OrderState.ASSEMBLY_FAILED);
         Order savedOrder = orderRepository.save(order);
